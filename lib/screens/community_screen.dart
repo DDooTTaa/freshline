@@ -14,6 +14,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   String _todayWord = '';
   bool _isLoadingWord = true;
+  bool _showFollowingOnly = false; // 팔로우한 사용자만 보기
 
   @override
   void initState() {
@@ -41,6 +42,18 @@ class _CommunityScreenState extends State<CommunityScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('커뮤니티'),
+        actions: [
+          IconButton(
+            icon:
+                Icon(_showFollowingOnly ? Icons.people : Icons.people_outline),
+            onPressed: () {
+              setState(() {
+                _showFollowingOnly = !_showFollowingOnly;
+              });
+            },
+            tooltip: _showFollowingOnly ? '전체 보기' : '팔로우한 사용자만 보기',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -85,7 +98,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
           // 공개 작품 목록
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _firestoreService.getTodayWordCreations(),
+              stream: _showFollowingOnly
+                  ? _firestoreService.getFollowingCreations()
+                  : _firestoreService.getTodayWordCreations(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -105,13 +120,17 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.edit_note,
+                          _showFollowingOnly
+                              ? Icons.people_outline
+                              : Icons.edit_note,
                           size: 80,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '아직 공유된 작품이 없습니다',
+                          _showFollowingOnly
+                              ? '팔로우한 사용자의 작품이 없습니다'
+                              : '아직 공유된 작품이 없습니다',
                           style: TextStyle(
                             fontSize: 18,
                             color:
@@ -120,7 +139,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '첫 번째 작품을 공유해보세요!',
+                          _showFollowingOnly
+                              ? '다른 사용자를 팔로우해보세요!'
+                              : '첫 번째 작품을 공유해보세요!',
                           style: TextStyle(
                             fontSize: 14,
                             color:
@@ -191,6 +212,54 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                     ],
                                   ),
                                 ),
+                                // 팔로우 버튼 (자신의 작품이 아닐 때만 표시)
+                                if (creation['userId'] != userId)
+                                  StreamBuilder<bool>(
+                                    stream: _firestoreService.isFollowingStream(
+                                        creation['userId'] as String),
+                                    builder: (context, snapshot) {
+                                      final isFollowing =
+                                          snapshot.data ?? false;
+                                      return TextButton.icon(
+                                        icon: Icon(
+                                          isFollowing
+                                              ? Icons.person
+                                              : Icons.person_add,
+                                          size: 16,
+                                        ),
+                                        label: Text(
+                                          isFollowing ? '팔로잉' : '팔로우',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        onPressed: () async {
+                                          final success =
+                                              await _firestoreService
+                                                  .toggleFollow(
+                                                      creation['userId']
+                                                          as String);
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(success
+                                                    ? '팔로우했습니다'
+                                                    : '언팔로우했습니다'),
+                                                duration:
+                                                    const Duration(seconds: 1),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      );
+                                    },
+                                  ),
                               ],
                             ),
                             const SizedBox(height: 12),

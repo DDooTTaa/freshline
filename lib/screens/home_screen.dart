@@ -22,6 +22,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingWord = true;
   bool _isLoadingWordInProgress = false; // 중복 호출 방지
   String? _cachedDate; // 캐시된 날짜
+  List<Color> _gradientColors = [
+    Color.fromRGBO(135, 206, 250, 1.0), // 기본 하늘색
+    Color.fromRGBO(176, 224, 230, 0.5), // 기본 파란색 (연하게)
+    Colors.white,
+  ];
 
   @override
   void initState() {
@@ -29,6 +34,25 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeWordPoolIfNeeded();
     _loadTodayWord();
     _loadUserInfo();
+    _loadTodayWordColors();
+  }
+
+  Future<void> _loadTodayWordColors() async {
+    try {
+      final colors = await _firestoreService.getTodayWordColors();
+      if (mounted && colors.length >= 2) {
+        setState(() {
+          // 상단 색상 -> 하단 색상(연하게) -> 흰색 순서로 그라데이션 생성
+          _gradientColors = [
+            colors[0], // 상단 색상
+            colors[1].withOpacity(0.4), // 하단 색상을 더 연하게
+            Colors.white, // 흰색
+          ];
+        });
+      }
+    } catch (e) {
+      print('단어 색상 로드 오류: $e');
+    }
   }
 
   // 단어 풀이 없으면 초기화
@@ -107,6 +131,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoadingWordInProgress = false;
           _cachedDate = today;
         });
+        // 단어 색상도 함께 로드
+        _loadTodayWordColors();
       }
     } catch (e) {
       print('오늘의 단어 로드 오류: $e');
@@ -117,6 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoadingWordInProgress = false;
           _cachedDate = today;
         });
+        // 단어 색상도 함께 로드
+        _loadTodayWordColors();
       }
     }
   }
@@ -303,10 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).colorScheme.primaryContainer,
-              Theme.of(context).colorScheme.surface,
-            ],
+            colors: _gradientColors,
           ),
         ),
         child: SafeArea(

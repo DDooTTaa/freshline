@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import '../models/creation.dart';
 import 'word_service.dart';
 
@@ -12,6 +13,335 @@ class FirestoreService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String get _userId => _auth.currentUser?.uid ?? '';
+
+  // 단어별 색상 매핑 (RGB 값)
+  List<Map<String, int>> _getWordColors(String word) {
+    final colorMap = {
+      '바람': [
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+        {'r': 176, 'g': 224, 'b': 230}, // 파란색
+      ],
+      '물': [
+        {'r': 64, 'g': 164, 'b': 223}, // 물색
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+      ],
+      '빛': [
+        {'r': 255, 'g': 215, 'b': 0}, // 금색
+        {'r': 255, 'g': 255, 'b': 224}, // 노란색
+      ],
+      '그림자': [
+        {'r': 105, 'g': 105, 'b': 105}, // 회색
+        {'r': 47, 'g': 79, 'b': 79}, // 어두운 회색
+      ],
+      '시간': [
+        {'r': 192, 'g': 192, 'b': 192}, // 은색
+        {'r': 169, 'g': 169, 'b': 169}, // 회색
+      ],
+      '기억': [
+        {'r': 186, 'g': 85, 'b': 211}, // 보라색
+        {'r': 221, 'g': 160, 'b': 221}, // 연보라색
+      ],
+      '꿈': [
+        {'r': 138, 'g': 43, 'b': 226}, // 보라색
+        {'r': 230, 'g': 230, 'b': 250}, // 연보라색
+      ],
+      '별': [
+        {'r': 255, 'g': 255, 'b': 255}, // 흰색
+        {'r': 255, 'g': 250, 'b': 205}, // 연노란색
+      ],
+      '하늘': [
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+      ],
+      '땅': [
+        {'r': 139, 'g': 69, 'b': 19}, // 갈색
+        {'r': 160, 'g': 82, 'b': 45}, // 갈색
+      ],
+      '나무': [
+        {'r': 34, 'g': 139, 'b': 34}, // 초록색
+        {'r': 85, 'g': 107, 'b': 47}, // 올리브색
+      ],
+      '꽃': [
+        {'r': 255, 'g': 192, 'b': 203}, // 분홍색
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+      ],
+      '새': [
+        {'r': 255, 'g': 165, 'b': 0}, // 주황색
+        {'r': 255, 'g': 140, 'b': 0}, // 진주황색
+      ],
+      '고양이': [
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+      ],
+      '강': [
+        {'r': 70, 'g': 130, 'b': 180}, // 강철색
+        {'r': 100, 'g': 149, 'b': 237}, // 옥색
+      ],
+      '바다': [
+        {'r': 0, 'g': 191, 'b': 255}, // 바다색
+        {'r': 25, 'g': 25, 'b': 112}, // 진한 파란색
+      ],
+      '산': [
+        {'r': 34, 'g': 139, 'b': 34}, // 초록색
+        {'r': 107, 'g': 142, 'b': 35}, // 올리브색
+      ],
+      '구름': [
+        {'r': 255, 'g': 255, 'b': 255}, // 흰색
+        {'r': 240, 'g': 248, 'b': 255}, // 연한 파란색
+      ],
+      '비': [
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+      ],
+      '눈': [
+        {'r': 255, 'g': 255, 'b': 255}, // 흰색
+        {'r': 240, 'g': 255, 'b': 255}, // 연한 하늘색
+      ],
+      '사랑': [
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+        {'r': 255, 'g': 105, 'b': 180}, // 핫핑크
+      ],
+      '슬픔': [
+        {'r': 72, 'g': 61, 'b': 139}, // 어두운 보라색
+        {'r': 106, 'g': 90, 'b': 205}, // 보라색
+      ],
+      '기쁨': [
+        {'r': 255, 'g': 215, 'b': 0}, // 금색
+        {'r': 255, 'g': 255, 'b': 0}, // 노란색
+      ],
+      '두려움': [
+        {'r': 25, 'g': 25, 'b': 112}, // 진한 파란색
+        {'r': 72, 'g': 61, 'b': 139}, // 어두운 보라색
+      ],
+      '희망': [
+        {'r': 50, 'g': 205, 'b': 50}, // 연두색
+        {'r': 144, 'g': 238, 'b': 144}, // 연한 초록색
+      ],
+      '고독': [
+        {'r': 105, 'g': 105, 'b': 105}, // 회색
+        {'r': 128, 'g': 128, 'b': 128}, // 회색
+      ],
+      '만남': [
+        {'r': 255, 'g': 140, 'b': 0}, // 진주황색
+        {'r': 255, 'g': 165, 'b': 0}, // 주황색
+      ],
+      '이별': [
+        {'r': 139, 'g': 0, 'b': 139}, // 진한 보라색
+        {'r': 186, 'g': 85, 'b': 211}, // 보라색
+      ],
+      '시작': [
+        {'r': 50, 'g': 205, 'b': 50}, // 연두색
+        {'r': 124, 'g': 252, 'b': 0}, // 연한 초록색
+      ],
+      '끝': [
+        {'r': 25, 'g': 25, 'b': 112}, // 진한 파란색
+        {'r': 72, 'g': 61, 'b': 139}, // 어두운 보라색
+      ],
+      '아침': [
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+      ],
+      '저녁': [
+        {'r': 255, 'g': 140, 'b': 0}, // 진주황색
+        {'r': 255, 'g': 165, 'b': 0}, // 주황색
+      ],
+      '밤': [
+        {'r': 25, 'g': 25, 'b': 112}, // 진한 파란색
+        {'r': 72, 'g': 61, 'b': 139}, // 어두운 보라색
+      ],
+      '낮': [
+        {'r': 255, 'g': 255, 'b': 224}, // 노란색
+        {'r': 255, 'g': 250, 'b': 205}, // 연노란색
+      ],
+      '봄': [
+        {'r': 144, 'g': 238, 'b': 144}, // 연한 초록색
+        {'r': 152, 'g': 251, 'b': 152}, // 민트색
+      ],
+      '여름': [
+        {'r': 0, 'g': 191, 'b': 255}, // 바다색
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+      ],
+      '가을': [
+        {'r': 255, 'g': 140, 'b': 0}, // 진주황색
+        {'r': 255, 'g': 165, 'b': 0}, // 주황색
+      ],
+      '겨울': [
+        {'r': 176, 'g': 224, 'b': 230}, // 파란색
+        {'r': 240, 'g': 255, 'b': 255}, // 연한 하늘색
+      ],
+      '달': [
+        {'r': 255, 'g': 255, 'b': 224}, // 노란색
+        {'r': 255, 'g': 250, 'b': 205}, // 연노란색
+      ],
+      '태양': [
+        {'r': 255, 'g': 215, 'b': 0}, // 금색
+        {'r': 255, 'g': 255, 'b': 0}, // 노란색
+      ],
+      '길': [
+        {'r': 192, 'g': 192, 'b': 192}, // 은색
+        {'r': 169, 'g': 169, 'b': 169}, // 회색
+      ],
+      '문': [
+        {'r': 139, 'g': 69, 'b': 19}, // 갈색
+        {'r': 160, 'g': 82, 'b': 45}, // 갈색
+      ],
+      '창': [
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+      ],
+      '벽': [
+        {'r': 192, 'g': 192, 'b': 192}, // 은색
+        {'r': 169, 'g': 169, 'b': 169}, // 회색
+      ],
+      '방': [
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+      ],
+      '집': [
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+      ],
+      '마을': [
+        {'r': 144, 'g': 238, 'b': 144}, // 연한 초록색
+        {'r': 152, 'g': 251, 'b': 152}, // 민트색
+      ],
+      '도시': [
+        {'r': 105, 'g': 105, 'b': 105}, // 회색
+        {'r': 128, 'g': 128, 'b': 128}, // 회색
+      ],
+      '숲': [
+        {'r': 34, 'g': 139, 'b': 34}, // 초록색
+        {'r': 85, 'g': 107, 'b': 47}, // 올리브색
+      ],
+      '들판': [
+        {'r': 144, 'g': 238, 'b': 144}, // 연한 초록색
+        {'r': 152, 'g': 251, 'b': 152}, // 민트색
+      ],
+      '손': [
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+      ],
+      '발': [
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+      ],
+      '입': [
+        {'r': 255, 'g': 192, 'b': 203}, // 분홍색
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+      ],
+      '귀': [
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+      ],
+      '마음': [
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+        {'r': 186, 'g': 85, 'b': 211}, // 보라색
+      ],
+      '영혼': [
+        {'r': 138, 'g': 43, 'b': 226}, // 보라색
+        {'r': 186, 'g': 85, 'b': 211}, // 보라색
+      ],
+      '몸': [
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+      ],
+      '얼굴': [
+        {'r': 255, 'g': 228, 'b': 196}, // 연복숭아색
+        {'r': 255, 'g': 218, 'b': 185}, // 복숭아색
+      ],
+      '목소리': [
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+      ],
+      '책': [
+        {'r': 139, 'g': 69, 'b': 19}, // 갈색
+        {'r': 160, 'g': 82, 'b': 45}, // 갈색
+      ],
+      '글': [
+        {'r': 105, 'g': 105, 'b': 105}, // 회색
+        {'r': 128, 'g': 128, 'b': 128}, // 회색
+      ],
+      '말': [
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+      ],
+      '이야기': [
+        {'r': 186, 'g': 85, 'b': 211}, // 보라색
+        {'r': 221, 'g': 160, 'b': 221}, // 연보라색
+      ],
+      '노래': [
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+        {'r': 255, 'g': 105, 'b': 180}, // 핫핑크
+      ],
+      '춤': [
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+        {'r': 255, 'g': 105, 'b': 180}, // 핫핑크
+      ],
+      '그림': [
+        {'r': 255, 'g': 215, 'b': 0}, // 금색
+        {'r': 255, 'g': 140, 'b': 0}, // 진주황색
+      ],
+      '색': [
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+        {'r': 255, 'g': 215, 'b': 0}, // 금색
+      ],
+      '소리': [
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+      ],
+      '침묵': [
+        {'r': 105, 'g': 105, 'b': 105}, // 회색
+        {'r': 72, 'g': 61, 'b': 139}, // 어두운 보라색
+      ],
+      '웃음': [
+        {'r': 255, 'g': 215, 'b': 0}, // 금색
+        {'r': 255, 'g': 255, 'b': 0}, // 노란색
+      ],
+      '울음': [
+        {'r': 135, 'g': 206, 'b': 250}, // 하늘색
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+      ],
+      '한숨': [
+        {'r': 176, 'g': 196, 'b': 222}, // 연한 파란색
+        {'r': 192, 'g': 192, 'b': 192}, // 은색
+      ],
+      '부르짖음': [
+        {'r': 255, 'g': 140, 'b': 0}, // 진주황색
+        {'r': 255, 'g': 165, 'b': 0}, // 주황색
+      ],
+      '속삭임': [
+        {'r': 186, 'g': 85, 'b': 211}, // 보라색
+        {'r': 221, 'g': 160, 'b': 221}, // 연보라색
+      ],
+      '외침': [
+        {'r': 255, 'g': 140, 'b': 0}, // 진주황색
+        {'r': 255, 'g': 165, 'b': 0}, // 주황색
+      ],
+      '고백': [
+        {'r': 255, 'g': 20, 'b': 147}, // 진분홍색
+        {'r': 255, 'g': 192, 'b': 203}, // 분홍색
+      ],
+      '약속': [
+        {'r': 50, 'g': 205, 'b': 50}, // 연두색
+        {'r': 144, 'g': 238, 'b': 144}, // 연한 초록색
+      ],
+      '거짓말': [
+        {'r': 72, 'g': 61, 'b': 139}, // 어두운 보라색
+        {'r': 105, 'g': 105, 'b': 105}, // 회색
+      ],
+      '진실': [
+        {'r': 255, 'g': 255, 'b': 255}, // 흰색
+        {'r': 255, 'g': 250, 'b': 205}, // 연노란색
+      ],
+    };
+
+    // 단어에 해당하는 색상이 있으면 반환, 없으면 기본 색상 반환
+    return colorMap[word] ??
+        [
+          {'r': 135, 'g': 206, 'b': 250}, // 기본 하늘색
+          {'r': 176, 'g': 224, 'b': 230}, // 기본 파란색
+        ];
+  }
 
   // 작품 저장
   Future<String?> saveCreation(Creation creation) async {
@@ -248,12 +578,12 @@ class FirestoreService {
   Future<List<String>> _getRecentWords(int days) async {
     try {
       final now = DateTime.now();
-      final recentDates = List.generate(days, (i) => _getDateString(now.subtract(Duration(days: i))));
-      
-      final futures = recentDates.map((date) => 
-        _firestore.collection('daily_words').doc(date).get()
-      );
-      
+      final recentDates = List.generate(
+          days, (i) => _getDateString(now.subtract(Duration(days: i))));
+
+      final futures = recentDates
+          .map((date) => _firestore.collection('daily_words').doc(date).get());
+
       final docs = await Future.wait(futures);
       return docs
           .where((doc) => doc.exists && doc.data() != null)
@@ -268,7 +598,7 @@ class FirestoreService {
   // 오늘의 단어 가져오기
   Future<String> getTodayWord() async {
     final today = _getDateString(DateTime.now());
-    
+
     // 먼저 오늘의 단어가 있는지 확인 (읽기만)
     try {
       final doc = await _firestore.collection('daily_words').doc(today).get();
@@ -280,7 +610,7 @@ class FirestoreService {
       // 읽기 실패 시 기본 단어 반환
       return WordService.getRandomWords(count: 1).first;
     }
-    
+
     // 오늘의 단어가 없으면 생성 (인증된 사용자만 가능)
     try {
       // 최근 단어 가져오기 (실패해도 계속 진행)
@@ -290,13 +620,14 @@ class FirestoreService {
       } catch (e) {
         print('최근 단어 가져오기 실패 (무시하고 계속): $e');
       }
-      
+
       // 단어 풀 가져오기
       final wordPool = await _getWordPool();
-      
+
       // 최근 7일간 사용된 단어는 제외하여 중복 방지
-      final availableWords = wordPool.where((word) => !recentWords.contains(word)).toList();
-      
+      final availableWords =
+          wordPool.where((word) => !recentWords.contains(word)).toList();
+
       String selectedWord;
       if (availableWords.isNotEmpty) {
         availableWords.shuffle();
@@ -306,21 +637,23 @@ class FirestoreService {
         final shuffledPool = List<String>.from(wordPool)..shuffle();
         selectedWord = shuffledPool.first;
       }
-      
+
       // 트랜잭션을 사용하여 동시성 문제 해결
       try {
         return await _firestore.runTransaction<String>((transaction) async {
           final docRef = _firestore.collection('daily_words').doc(today);
           final doc = await transaction.get(docRef);
-          
+
           if (doc.exists && doc.data() != null) {
             return doc.data()!['word'] as String;
           } else {
+            final colors = _getWordColors(selectedWord);
             transaction.set(docRef, {
               'word': selectedWord,
               'date': Timestamp.fromDate(DateTime.now()),
               'createdAt': Timestamp.now(),
               'source': 'auto_generated', // 자동 생성됨을 표시
+              'colors': colors, // 색상 추가
             });
             return selectedWord;
           }
@@ -329,11 +662,13 @@ class FirestoreService {
         print('트랜잭션 오류: $e');
         // 트랜잭션 실패 시 직접 쓰기 시도
         try {
+          final colors = _getWordColors(selectedWord);
           await _firestore.collection('daily_words').doc(today).set({
             'word': selectedWord,
             'date': Timestamp.fromDate(DateTime.now()),
             'createdAt': Timestamp.now(),
             'source': 'auto_generated',
+            'colors': colors, // 색상 추가
           });
           return selectedWord;
         } catch (e2) {
@@ -352,7 +687,7 @@ class FirestoreService {
   // 특정 날짜의 단어 가져오기
   Future<String?> getWordByDate(DateTime date) async {
     final dateStr = _getDateString(date);
-    
+
     try {
       final doc = await _firestore.collection('daily_words').doc(dateStr).get();
       if (doc.exists && doc.data() != null) {
@@ -368,13 +703,15 @@ class FirestoreService {
   // 날짜별 단어 설정 (관리자용)
   Future<bool> setWordForDate(DateTime date, String word) async {
     final dateStr = _getDateString(date);
-    
+
     try {
+      final colors = _getWordColors(word);
       await _firestore.collection('daily_words').doc(dateStr).set({
         'word': word,
         'date': Timestamp.fromDate(date),
         'createdAt': Timestamp.now(),
         'source': 'manual', // 수동 설정됨을 표시
+        'colors': colors, // 색상 추가
       });
       return true;
     } catch (e) {
@@ -383,9 +720,9 @@ class FirestoreService {
     }
   }
 
-
   // 공개 작품 저장 (오늘의 단어 포함)
-  Future<String?> savePublicCreationWithWord(Creation creation, String word, DateTime wordDate) async {
+  Future<String?> savePublicCreationWithWord(
+      Creation creation, String word, DateTime wordDate) async {
     if (_userId.isEmpty) {
       throw Exception('사용자가 로그인되지 않았습니다.');
     }
@@ -416,7 +753,7 @@ class FirestoreService {
   // 오늘의 단어에 대한 공개 작품 목록 가져오기 (daily_words에서 가져온 단어 사용)
   Stream<List<Map<String, dynamic>>> getTodayWordCreations() {
     final today = _getDateString(DateTime.now());
-    
+
     // daily_words에서 오늘의 단어를 가져와서 필터링
     // 날짜로 필터링 (wordDate 필드 사용)
     // orderBy 없이 가져온 후 클라이언트에서 정렬 (인덱스 문제 방지)
@@ -434,14 +771,14 @@ class FirestoreService {
           'createdAt': (data['createdAt'] as Timestamp).toDate(),
         };
       }).toList();
-      
+
       // 클라이언트에서 날짜순 정렬
       list.sort((a, b) {
         final aDate = a['createdAt'] as DateTime;
         final bDate = b['createdAt'] as DateTime;
         return bDate.compareTo(aDate); // 내림차순
       });
-      
+
       return list;
     });
   }
@@ -449,7 +786,7 @@ class FirestoreService {
   // 오늘의 단어 가져오기 (daily_words에서)
   Future<String> getTodayWordFromDailyWords() async {
     final today = _getDateString(DateTime.now());
-    
+
     try {
       final doc = await _firestore.collection('daily_words').doc(today).get();
       if (doc.exists && doc.data() != null) {
@@ -458,15 +795,54 @@ class FirestoreService {
     } catch (e) {
       print('daily_words에서 오늘의 단어 가져오기 오류: $e');
     }
-    
+
     // 없으면 기본 단어 반환
     return WordService.getRandomWords(count: 1).first;
+  }
+
+  // 오늘의 단어 색상 가져오기
+  Future<List<Color>> getTodayWordColors() async {
+    final today = _getDateString(DateTime.now());
+
+    try {
+      final doc = await _firestore.collection('daily_words').doc(today).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data['colors'] != null) {
+          final colors = (data['colors'] as List).map((color) {
+            return Color.fromRGBO(
+              color['r'] as int,
+              color['g'] as int,
+              color['b'] as int,
+              1.0,
+            );
+          }).toList();
+          return colors;
+        }
+        // 색상이 없으면 단어로부터 생성
+        final word = data['word'] as String? ?? '';
+        if (word.isNotEmpty) {
+          final colorMap = _getWordColors(word);
+          return colorMap.map((color) {
+            return Color.fromRGBO(color['r']!, color['g']!, color['b']!, 1.0);
+          }).toList();
+        }
+      }
+    } catch (e) {
+      print('오늘의 단어 색상 가져오기 오류: $e');
+    }
+
+    // 기본 색상 반환
+    return [
+      Color.fromRGBO(135, 206, 250, 1.0), // 하늘색
+      Color.fromRGBO(176, 224, 230, 1.0), // 파란색
+    ];
   }
 
   // 특정 날짜의 공개 작품 목록 가져오기
   Stream<List<Map<String, dynamic>>> getWordCreationsByDate(DateTime date) {
     final dateStr = _getDateString(date);
-    
+
     return _firestore
         .collection('public_creations')
         .where('wordDate', isEqualTo: dateStr)
@@ -497,7 +873,7 @@ class FirestoreService {
 
       // WordService에서 모든 단어 가져오기
       final words = WordService.getAllWords();
-      
+
       // Firebase에 단어 추가
       final batch = _firestore.batch();
       for (final word in words) {
@@ -507,7 +883,7 @@ class FirestoreService {
           'createdAt': Timestamp.now(),
         });
       }
-      
+
       await batch.commit();
       print('단어 풀 초기화 완료: ${words.length}개 단어 추가됨');
       return true;
@@ -525,7 +901,7 @@ class FirestoreService {
           .collection('word_pool')
           .where('word', isEqualTo: word)
           .get();
-      
+
       if (existingSnapshot.docs.isNotEmpty) {
         print('이미 존재하는 단어입니다: $word');
         return false;
@@ -535,7 +911,7 @@ class FirestoreService {
         'word': word,
         'createdAt': Timestamp.now(),
       });
-      
+
       print('단어 추가 완료: $word');
       return true;
     } catch (e) {
@@ -650,21 +1026,24 @@ class FirestoreService {
         final date = today.add(Duration(days: i));
         final dateStr = _getDateString(date);
         final wordData = wordsWithExamples[i];
-        
+
         // 이미 해당 날짜에 단어가 있는지 확인
-        final existingDoc = await _firestore.collection('daily_words').doc(dateStr).get();
+        final existingDoc =
+            await _firestore.collection('daily_words').doc(dateStr).get();
         if (existingDoc.exists) {
           print('${dateStr} 날짜의 단어가 이미 존재합니다. 건너뜁니다.');
           continue;
         }
 
         final docRef = _firestore.collection('daily_words').doc(dateStr);
+        final colors = _getWordColors(wordData['word'] as String);
         batch.set(docRef, {
           'word': wordData['word'],
           'example': wordData['example'],
           'date': Timestamp.fromDate(date),
           'createdAt': Timestamp.now(),
           'source': 'manual', // 수동 설정
+          'colors': colors, // 색상 추가
         });
         addedCount++;
       }
@@ -681,5 +1060,161 @@ class FirestoreService {
       print('날짜별 단어 초기화 오류: $e');
       return false;
     }
+  }
+
+  // 팔로우 추가/제거
+  Future<bool> toggleFollow(String targetUserId) async {
+    if (_userId.isEmpty || targetUserId.isEmpty || _userId == targetUserId) {
+      return false;
+    }
+
+    try {
+      final followRef =
+          _firestore.collection('follows').doc('$_userId-$targetUserId');
+
+      final followDoc = await followRef.get();
+
+      if (followDoc.exists) {
+        // 언팔로우
+        await followRef.delete();
+        return false;
+      } else {
+        // 팔로우
+        await followRef.set({
+          'followerId': _userId,
+          'followingId': targetUserId,
+          'createdAt': Timestamp.now(),
+        });
+        return true;
+      }
+    } catch (e) {
+      print('팔로우 토글 오류: $e');
+      return false;
+    }
+  }
+
+  // 팔로우 상태 확인
+  Future<bool> isFollowing(String targetUserId) async {
+    if (_userId.isEmpty || targetUserId.isEmpty) {
+      return false;
+    }
+
+    try {
+      final followDoc = await _firestore
+          .collection('follows')
+          .doc('$_userId-$targetUserId')
+          .get();
+      return followDoc.exists;
+    } catch (e) {
+      print('팔로우 상태 확인 오류: $e');
+      return false;
+    }
+  }
+
+  // 팔로우 상태 스트림
+  Stream<bool> isFollowingStream(String targetUserId) {
+    if (_userId.isEmpty || targetUserId.isEmpty) {
+      return Stream.value(false);
+    }
+
+    return _firestore
+        .collection('follows')
+        .doc('$_userId-$targetUserId')
+        .snapshots()
+        .map((snapshot) => snapshot.exists);
+  }
+
+  // 팔로우한 사용자 목록 가져오기
+  Future<List<String>> getFollowingList() async {
+    if (_userId.isEmpty) {
+      return [];
+    }
+
+    try {
+      final snapshot = await _firestore
+          .collection('follows')
+          .where('followerId', isEqualTo: _userId)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => doc.data()['followingId'] as String)
+          .toList();
+    } catch (e) {
+      print('팔로우 목록 가져오기 오류: $e');
+      return [];
+    }
+  }
+
+  // 팔로워 목록 가져오기
+  Future<List<String>> getFollowerList() async {
+    if (_userId.isEmpty) {
+      return [];
+    }
+
+    try {
+      final snapshot = await _firestore
+          .collection('follows')
+          .where('followingId', isEqualTo: _userId)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => doc.data()['followerId'] as String)
+          .toList();
+    } catch (e) {
+      print('팔로워 목록 가져오기 오류: $e');
+      return [];
+    }
+  }
+
+  // 팔로우한 사용자의 작품만 가져오기
+  Stream<List<Map<String, dynamic>>> getFollowingCreations() {
+    if (_userId.isEmpty) {
+      return Stream.value([]);
+    }
+
+    return _firestore
+        .collection('follows')
+        .where('followerId', isEqualTo: _userId)
+        .snapshots()
+        .asyncMap((followSnapshot) async {
+      if (followSnapshot.docs.isEmpty) {
+        return <Map<String, dynamic>>[];
+      }
+
+      final followingIds = followSnapshot.docs
+          .map((doc) => doc.data()['followingId'] as String)
+          .toList();
+
+      if (followingIds.isEmpty) {
+        return <Map<String, dynamic>>[];
+      }
+
+      // 팔로우한 사용자들의 작품 가져오기
+      final today = _getDateString(DateTime.now());
+      final creationsSnapshot = await _firestore
+          .collection('public_creations')
+          .where('wordDate', isEqualTo: today)
+          .where('userId', whereIn: followingIds)
+          .limit(100)
+          .get();
+
+      final list = creationsSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          ...data,
+          'createdAt': (data['createdAt'] as Timestamp).toDate(),
+        };
+      }).toList();
+
+      // 날짜순 정렬
+      list.sort((a, b) {
+        final aDate = a['createdAt'] as DateTime;
+        final bDate = b['createdAt'] as DateTime;
+        return bDate.compareTo(aDate);
+      });
+
+      return list;
+    });
   }
 }
