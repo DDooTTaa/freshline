@@ -839,6 +839,23 @@ class FirestoreService {
     ];
   }
 
+  // 오늘의 단어 예시 문장 가져오기
+  Future<String?> getTodayWordExample() async {
+    final today = _getDateString(DateTime.now());
+
+    try {
+      final doc = await _firestore.collection('daily_words').doc(today).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        return data['example'] as String?;
+      }
+    } catch (e) {
+      print('오늘의 단어 예시 가져오기 오류: $e');
+    }
+
+    return null;
+  }
+
   // 특정 날짜의 공개 작품 목록 가져오기
   Stream<List<Map<String, dynamic>>> getWordCreationsByDate(DateTime date) {
     final dateStr = _getDateString(date);
@@ -1040,6 +1057,9 @@ class FirestoreService {
         batch.set(docRef, {
           'word': wordData['word'],
           'example': wordData['example'],
+          'exampleAuthor': _auth.currentUser?.uid ?? 'system', // 예시 작성자
+          'exampleAuthorName':
+              _auth.currentUser?.displayName ?? '시스템', // 예시 작성자 이름
           'date': Timestamp.fromDate(date),
           'createdAt': Timestamp.now(),
           'source': 'manual', // 수동 설정

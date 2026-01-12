@@ -16,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _currentWord = '';
+  String? _todayExample; // 오늘의 단어 예시 문장
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
   Map<String, String> _userInfo = {};
@@ -35,6 +36,20 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadTodayWord();
     _loadUserInfo();
     _loadTodayWordColors();
+    _loadTodayWordExample();
+  }
+
+  Future<void> _loadTodayWordExample() async {
+    try {
+      final example = await _firestoreService.getTodayWordExample();
+      if (mounted) {
+        setState(() {
+          _todayExample = example;
+        });
+      }
+    } catch (e) {
+      print('오늘의 단어 예시 로드 오류: $e');
+    }
   }
 
   Future<void> _loadTodayWordColors() async {
@@ -53,6 +68,14 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print('단어 색상 로드 오류: $e');
     }
+  }
+
+  // 배경색에 따라 텍스트 색상 결정 (밝으면 검정, 어두우면 하양)
+  Color _getTextColorForBackground(Color backgroundColor) {
+    // 색상의 밝기 계산 (0.0 ~ 1.0)
+    final brightness = backgroundColor.computeLuminance();
+    // 밝기가 0.5보다 크면 검정, 작으면 하양
+    return brightness > 0.5 ? Colors.black : Colors.white;
   }
 
   // 단어 풀이 없으면 초기화
@@ -131,8 +154,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoadingWordInProgress = false;
           _cachedDate = today;
         });
-        // 단어 색상도 함께 로드
+        // 단어 색상과 예시도 함께 로드
         _loadTodayWordColors();
+        _loadTodayWordExample();
       }
     } catch (e) {
       print('오늘의 단어 로드 오류: $e');
@@ -143,8 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoadingWordInProgress = false;
           _cachedDate = today;
         });
-        // 단어 색상도 함께 로드
+        // 단어 색상과 예시도 함께 로드
         _loadTodayWordColors();
+        _loadTodayWordExample();
       }
     }
   }
@@ -341,48 +366,24 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(),
-                const Text(
-                  '언어 스트레칭',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 48),
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 32,
+                if (_todayExample != null && _todayExample!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Text(
+                      _todayExample!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        height: 1.6,
+                        color: _getTextColorForBackground(_gradientColors[0])
+                            .withOpacity(0.7), // 투명도 적용
+                      ),
                     ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          '오늘의 단어',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _isLoadingWord
-                            ? const CircularProgressIndicator()
-                            : Text(
-                                _currentWord,
-                                style: TextStyle(
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                      ],
-                    ),
+                  )
+                else if (_isLoadingWord)
+                  CircularProgressIndicator(
+                    color: _getTextColorForBackground(_gradientColors[0]),
                   ),
-                ),
                 const SizedBox(height: 48),
                 SizedBox(
                   width: double.infinity,
