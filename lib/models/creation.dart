@@ -1,5 +1,6 @@
 class Creation {
-  final int? id;
+  final int? id; // SQLite용 (하위 호환성)
+  final String? docId; // Firestore document ID
   final List<String> originalWords;
   final String sentence;
   final List<String> replacedWords;
@@ -8,6 +9,7 @@ class Creation {
 
   Creation({
     this.id,
+    this.docId,
     required this.originalWords,
     required this.sentence,
     required this.replacedWords,
@@ -18,6 +20,7 @@ class Creation {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'docId': docId,
       'originalWords': originalWords,
       'sentence': sentence,
       'replacedWords': replacedWords,
@@ -29,6 +32,7 @@ class Creation {
   factory Creation.fromJson(Map<String, dynamic> json) {
     return Creation(
       id: json['id'] as int?,
+      docId: json['docId'] as String?,
       originalWords: List<String>.from(json['originalWords'] as List),
       sentence: json['sentence'] as String,
       replacedWords: List<String>.from(json['replacedWords'] as List),
@@ -41,6 +45,7 @@ class Creation {
 
   Creation copyWith({
     int? id,
+    String? docId,
     List<String>? originalWords,
     String? sentence,
     List<String>? replacedWords,
@@ -49,6 +54,7 @@ class Creation {
   }) {
     return Creation(
       id: id ?? this.id,
+      docId: docId ?? this.docId,
       originalWords: originalWords ?? this.originalWords,
       sentence: sentence ?? this.sentence,
       replacedWords: replacedWords ?? this.replacedWords,

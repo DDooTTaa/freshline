@@ -96,6 +96,30 @@ Firebase Console에서 다음 서비스를 활성화하세요:
 2. 테스트 모드로 시작 (개발 중)
 3. 위치 선택 (예: `asia-northeast3` - 서울)
 
+### 단어 풀 초기 설정
+
+Firestore Console에서 `word_pool` 컬렉션을 생성하고 단어를 추가하세요:
+
+1. Firestore Database > 데이터 탭
+2. 컬렉션 시작 > 컬렉션 ID: `word_pool`
+3. 문서 추가:
+   - 문서 ID: 자동 생성
+   - 필드 추가:
+     - `word` (문자열): 단어 (예: "바람", "물", "빛" 등)
+     - `createdAt` (타임스탬프): 생성 시간
+
+**초기 단어 목록 예시:**
+- 바람, 물, 빛, 그림자, 시간, 기억, 꿈, 별, 하늘, 땅
+- 나무, 꽃, 새, 고양이, 강, 바다, 산, 구름, 비, 눈
+- 사랑, 슬픔, 기쁨, 두려움, 희망, 고독, 만남, 이별, 시작, 끝
+- 아침, 저녁, 밤, 낮, 봄, 여름, 가을, 겨울, 달, 태양
+- 길, 문, 창, 벽, 방, 집, 마을, 도시, 숲, 들판
+- 손, 발, 눈, 입, 귀, 마음, 영혼, 몸, 얼굴, 목소리
+- 책, 글, 말, 이야기, 노래, 춤, 그림, 색, 소리, 침묵
+- 웃음, 울음, 한숨, 부르짖음, 속삭임, 외침, 고백, 약속, 거짓말, 진실
+
+**참고:** 단어 풀이 없으면 기본 단어 목록을 사용합니다.
+
 ### 보안 규칙 예시
 
 ```javascript
@@ -107,13 +131,25 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // 공개 작품
+    // 공개 작품 (모든 사용자 읽기 가능, 쓰기는 인증된 사용자만)
     match /public_creations/{creationId} {
-      allow read: if request.auth != null;
+      allow read: if true; // 모든 사용자 읽기 가능 (인증 불필요)
       allow create: if request.auth != null;
       allow update: if request.auth != null && 
         (request.resource.data.diff(resource.data).affectedKeys()
          .hasOnly(['likeCount', 'likes']));
+    }
+    
+    // 날짜별 단어 (모든 사용자 읽기 가능, 쓰기는 인증된 사용자만)
+    match /daily_words/{date} {
+      allow read: if true; // 모든 사용자 읽기 가능 (인증 불필요)
+      allow write: if request.auth != null; // 인증된 사용자만 쓰기 가능
+    }
+    
+    // 단어 풀 (모든 사용자 읽기 가능, 쓰기는 관리자만)
+    match /word_pool/{wordId} {
+      allow read: if true; // 모든 사용자 읽기 가능 (인증 불필요)
+      allow write: if false; // Firebase Console에서만 수정 가능
     }
   }
 }

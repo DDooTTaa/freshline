@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/creation.dart';
-import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 
 class CreationDetailScreen extends StatefulWidget {
   final Creation creation;
@@ -19,7 +19,7 @@ class CreationDetailScreen extends StatefulWidget {
 class _CreationDetailScreenState extends State<CreationDetailScreen> {
   late Creation _creation;
   final TextEditingController _sentenceController = TextEditingController();
-  final DatabaseService _dbService = DatabaseService();
+  final FirestoreService _firestoreService = FirestoreService();
   bool _isEditing = false;
 
   @override
@@ -43,23 +43,37 @@ class _CreationDetailScreenState extends State<CreationDetailScreen> {
       return;
     }
 
+    if (_creation.docId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('작품 정보를 찾을 수 없습니다.')),
+      );
+      return;
+    }
+
     try {
       final updatedCreation = _creation.copyWith(
         sentence: _sentenceController.text,
         updatedAt: DateTime.now(),
       );
 
-      await _dbService.updateCreation(updatedCreation);
+      final success = await _firestoreService.updateCreation(
+        _creation.docId!,
+        updatedCreation,
+      );
 
-      setState(() {
-        _creation = updatedCreation;
-        _isEditing = false;
-      });
+      if (success) {
+        setState(() {
+          _creation = updatedCreation;
+          _isEditing = false;
+        });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('수정되었습니다.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('수정되었습니다.')),
+          );
+        }
+      } else {
+        throw Exception('수정에 실패했습니다.');
       }
     } catch (e) {
       if (mounted) {

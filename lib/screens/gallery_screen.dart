@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/creation.dart';
-import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 import 'creation_detail_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
@@ -12,7 +12,7 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
-  final DatabaseService _dbService = DatabaseService();
+  final FirestoreService _firestoreService = FirestoreService();
   List<Creation> _creations = [];
   bool _isLoading = true;
 
@@ -28,7 +28,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     });
 
     try {
-      final creations = await _dbService.getAllCreations();
+      final creations = await _firestoreService.getCreations();
       setState(() {
         _creations = creations;
         _isLoading = false;
@@ -46,7 +46,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Future<void> _deleteCreation(Creation creation) async {
-    if (creation.id == null) return;
+    if (creation.docId == null) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -68,12 +68,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
     if (confirmed == true) {
       try {
-        await _dbService.deleteCreation(creation.id!);
-        _loadCreations();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('작품이 삭제되었습니다.')),
-          );
+        final success = await _firestoreService.deleteCreation(creation.docId!);
+        if (success) {
+          _loadCreations();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('작품이 삭제되었습니다.')),
+            );
+          }
+        } else {
+          throw Exception('삭제에 실패했습니다.');
         }
       } catch (e) {
         if (mounted) {

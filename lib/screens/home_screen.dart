@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/word_service.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import 'creation_screen.dart';
 import 'gallery_screen.dart';
 import 'login_screen.dart';
+import 'community_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,13 +17,28 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _currentWord = '';
   final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
   Map<String, String> _userInfo = {};
+  bool _isLoadingWord = true;
+  bool _isLoadingWordInProgress = false; // 중복 호출 방지
+  String? _cachedDate; // 캐시된 날짜
 
   @override
   void initState() {
     super.initState();
-    _loadRandomWord();
+    _initializeWordPoolIfNeeded();
+    _loadTodayWord();
     _loadUserInfo();
+  }
+
+  // 단어 풀이 없으면 초기화
+  Future<void> _initializeWordPoolIfNeeded() async {
+    try {
+      // 단어 풀 초기화 (내부에서 중복 확인)
+      await _firestoreService.initializeWordPool();
+    } catch (e) {
+      print('단어 풀 초기화 오류: $e');
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -63,11 +80,121 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _loadRandomWord() {
+  Future<void> _loadTodayWord() async {
+    // 이미 로딩 중이면 중복 호출 방지
+    if (_isLoadingWordInProgress) return;
+
+    // 오늘 날짜 확인
+    final today = _getDateString(DateTime.now());
+
+    // 같은 날짜면 이미 로드된 단어 사용
+    if (_cachedDate == today && _currentWord.isNotEmpty) {
+      return;
+    }
+
     setState(() {
-      final words = WordService.getRandomWords(count: 1);
-      _currentWord = words.isNotEmpty ? words[0] : '';
+      _isLoadingWord = true;
+      _isLoadingWordInProgress = true;
     });
+
+    try {
+      // daily_words에서 오늘의 단어 가져오기
+      final word = await _firestoreService.getTodayWordFromDailyWords();
+      if (mounted) {
+        setState(() {
+          _currentWord = word;
+          _isLoadingWord = false;
+          _isLoadingWordInProgress = false;
+          _cachedDate = today;
+        });
+      }
+    } catch (e) {
+      print('오늘의 단어 로드 오류: $e');
+      if (mounted) {
+        setState(() {
+          _currentWord = WordService.getRandomWords(count: 1).first;
+          _isLoadingWord = false;
+          _isLoadingWordInProgress = false;
+          _cachedDate = today;
+        });
+      }
+    }
+  }
+
+  String _getDateString(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  // 날짜별 단어 초기화
+  Future<void> _initializeDailyWords() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('날짜별 단어 초기화'),
+        content: const Text(
+          '오늘부터 80일간의 날짜별 단어와 예시 문장을 설정하시겠습니까?\n\n'
+          '이미 설정된 날짜는 건너뜁니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    if (!mounted) return;
+
+    // 로딩 다이얼로그 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final success =
+          await _firestoreService.initializeDailyWordsWithExamples();
+
+      if (!mounted) return;
+      Navigator.pop(context); // 로딩 다이얼로그 닫기
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('날짜별 단어 초기화가 완료되었습니다.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        // 오늘의 단어 다시 로드
+        _loadTodayWord();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('날짜별 단어 초기화 중 오류가 발생했습니다.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // 로딩 다이얼로그 닫기
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('오류: $e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
@@ -84,6 +211,18 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CommunityScreen(),
+                ),
+              );
+            },
+            tooltip: '커뮤니티',
+          ),
           IconButton(
             icon: const Icon(Icons.collections_bookmark),
             onPressed: () {
@@ -106,9 +245,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? const Icon(Icons.person, size: 20)
                   : null,
             ),
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'logout') {
                 _signOut();
+              } else if (value == 'initDailyWords') {
+                await _initializeDailyWords();
               }
             },
             itemBuilder: (context) => [
@@ -131,6 +272,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'initDailyWords',
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 20),
+                    SizedBox(width: 8),
+                    Text('날짜별 단어 초기화'),
+                  ],
+                ),
+              ),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'logout',
@@ -192,14 +344,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          _currentWord,
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
+                        _isLoadingWord
+                            ? const CircularProgressIndicator()
+                            : Text(
+                                _currentWord,
+                                style: TextStyle(
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
                       ],
                     ),
                   ),
@@ -217,10 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             initialWord: _currentWord,
                           ),
                         ),
-                      ).then((_) {
-                        // 돌아왔을 때 새 단어 로드
-                        _loadRandomWord();
-                      });
+                      );
                     },
                     icon: const Icon(Icons.edit, size: 24),
                     label: const Text(
@@ -235,11 +386,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: _loadRandomWord,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('다른 단어 받기'),
-                  style: TextButton.styleFrom(
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CommunityScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.people),
+                  label: const Text('커뮤니티 보기'),
+                  style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 12,
@@ -255,4 +413,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-

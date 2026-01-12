@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class FirebaseAuthService {
   static final FirebaseAuthService _instance = FirebaseAuthService._internal();
@@ -7,7 +8,9 @@ class FirebaseAuthService {
   FirebaseAuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: kIsWeb ? null : '1:624224167958:web:121ae29c2bf7eead422d37',
+  );
 
   User? get currentUser => _auth.currentUser;
   bool get isSignedIn => _auth.currentUser != null;
@@ -16,24 +19,30 @@ class FirebaseAuthService {
 
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Google Sign-In 플로우 시작
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        return null; // 사용자가 로그인 취소
+      if (kIsWeb) {
+        // 웹에서는 Firebase Auth 직접 사용
+        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        return await _auth.signInWithPopup(googleProvider);
+      } else {
+        // 모바일에서는 기존 방식 사용
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          return null; // 사용자가 로그인 취소
+        }
+
+        // Google 인증 정보 가져오기
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
+        // Firebase 인증 정보 생성
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Firebase에 로그인
+        return await _auth.signInWithCredential(credential);
       }
-
-      // Google 인증 정보 가져오기
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Firebase 인증 정보 생성
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Firebase에 로그인
-      return await _auth.signInWithCredential(credential);
     } catch (e) {
       print('Firebase 구글 로그인 오류: $e');
       return null;
@@ -42,10 +51,14 @@ class FirebaseAuthService {
 
   Future<void> signOut() async {
     try {
-      await Future.wait([
-        _auth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      if (kIsWeb) {
+        await _auth.signOut();
+      } else {
+        await Future.wait([
+          _auth.signOut(),
+          _googleSignIn.signOut(),
+        ]);
+      }
     } catch (e) {
       print('로그아웃 오류: $e');
     }
