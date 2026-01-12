@@ -11,7 +11,7 @@
 3. "API 및 서비스" > "사용자 인증 정보"로 이동
 4. "사용자 인증 정보 만들기" > "OAuth 클라이언트 ID" 선택
 5. 애플리케이션 유형: Android 선택
-6. 패키지 이름: `com.example.language_stretching` (또는 실제 패키지 이름)
+6. 패키지 이름: `com.languagestretching.app`
 7. SHA-1 인증서 지문 추가:
    ```bash
    # 디버그 키스토어의 SHA-1 확인

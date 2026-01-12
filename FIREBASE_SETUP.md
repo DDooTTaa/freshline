@@ -35,7 +35,7 @@ flutterfire configure
 ### google-services.json 파일
 
 1. Firebase Console에서 Android 앱 추가
-2. 패키지 이름 입력: `com.example.language_stretching` (실제 패키지 이름으로 변경)
+2. 패키지 이름 입력: `com.languagestretching.app`
 3. `google-services.json` 파일 다운로드
 4. `android/app/` 폴더에 복사
 
