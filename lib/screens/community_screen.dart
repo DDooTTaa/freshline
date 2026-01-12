@@ -114,7 +114,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                           '아직 공유된 작품이 없습니다',
                           style: TextStyle(
                             fontSize: 18,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -122,7 +123,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                           '첫 번째 작품을 공유해보세요!',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -137,7 +139,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     final creation = creations[index];
                     final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
                     final likes = List<String>.from(creation['likes'] ?? []);
-                    final hasLiked = userId.isNotEmpty && likes.contains(userId);
+                    final hasLiked =
+                        userId.isNotEmpty && likes.contains(userId);
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -152,9 +155,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 16,
-                                  backgroundImage: creation['userPhoto']?.isNotEmpty == true
-                                      ? NetworkImage(creation['userPhoto'] as String)
-                                      : null,
+                                  backgroundImage:
+                                      creation['userPhoto']?.isNotEmpty == true
+                                          ? NetworkImage(
+                                              creation['userPhoto'] as String)
+                                          : null,
                                   child: creation['userPhoto']?.isEmpty != false
                                       ? const Icon(Icons.person, size: 16)
                                       : null,
@@ -162,7 +167,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         creation['userName'] as String? ?? '익명',
@@ -177,7 +183,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                         ),
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -200,16 +208,60 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               spacing: 8,
                               runSpacing: 4,
                               children: [
-                                if (creation['word'] != null)
-                                  Chip(
-                                    label: Text(
-                                      '단어: ${creation['word']}',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer,
-                                    padding: EdgeInsets.zero,
+                                if (creation['originalWords'] != null)
+                                  ...List.generate(
+                                    (creation['originalWords'] as List).length,
+                                    (index) {
+                                      final originalWords =
+                                          creation['originalWords'] as List;
+                                      final replacedWords =
+                                          creation['replacedWords'] as List? ??
+                                              originalWords;
+                                      final originalWord =
+                                          originalWords[index] as String;
+                                      final replacedWord =
+                                          index < replacedWords.length
+                                              ? replacedWords[index] as String
+                                              : originalWord;
+                                      final isReplaced =
+                                          originalWord != replacedWord;
+
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Chip(
+                                            label: Text(
+                                              originalWord,
+                                              style:
+                                                  const TextStyle(fontSize: 12),
+                                            ),
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceVariant,
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          if (isReplaced) ...[
+                                            const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 4),
+                                              child: Icon(Icons.arrow_forward,
+                                                  size: 16),
+                                            ),
+                                            Chip(
+                                              label: Text(
+                                                replacedWord,
+                                                style: const TextStyle(
+                                                    fontSize: 12),
+                                              ),
+                                              backgroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .primaryContainer,
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                          ],
+                                        ],
+                                      );
+                                    },
                                   ),
                               ],
                             ),
@@ -219,11 +271,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               children: [
                                 IconButton(
                                   icon: Icon(
-                                    hasLiked ? Icons.favorite : Icons.favorite_border,
+                                    hasLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
                                     color: hasLiked ? Colors.red : null,
                                   ),
                                   onPressed: () {
-                                    _firestoreService.toggleLike(creation['id'] as String);
+                                    _firestoreService
+                                        .toggleLike(creation['id'] as String);
                                   },
                                 ),
                                 Text(

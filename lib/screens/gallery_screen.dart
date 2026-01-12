@@ -164,20 +164,57 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                 Wrap(
                                   spacing: 8,
                                   runSpacing: 4,
-                                  children: creation.originalWords
-                                      .map((word) => Chip(
+                                  children: List.generate(
+                                    creation.originalWords.length,
+                                    (index) {
+                                      final originalWord =
+                                          creation.originalWords[index];
+                                      final replacedWord =
+                                          index < creation.replacedWords.length
+                                              ? creation.replacedWords[index]
+                                              : originalWord;
+                                      final isReplaced =
+                                          originalWord != replacedWord;
+
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Chip(
                                             label: Text(
-                                              word,
+                                              originalWord,
                                               style: const TextStyle(
                                                 fontSize: 12,
                                               ),
                                             ),
                                             backgroundColor: Theme.of(context)
                                                 .colorScheme
-                                                .primaryContainer,
+                                                .surfaceVariant,
                                             padding: EdgeInsets.zero,
-                                          ))
-                                      .toList(),
+                                          ),
+                                          if (isReplaced) ...[
+                                            const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 4),
+                                              child: Icon(Icons.arrow_forward,
+                                                  size: 16),
+                                            ),
+                                            Chip(
+                                              label: Text(
+                                                replacedWord,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              backgroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .primaryContainer,
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                          ],
+                                        ],
+                                      );
+                                    },
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
@@ -197,10 +234,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline,
                                           size: 20),
-                                      onPressed: () => _deleteCreation(creation),
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .error,
+                                      onPressed: () =>
+                                          _deleteCreation(creation),
+                                      color:
+                                          Theme.of(context).colorScheme.error,
                                     ),
                                   ],
                                 ),
@@ -215,4 +252,3 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 }
-
