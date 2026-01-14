@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
+import 'dart:math' as math;
 import '../services/word_service.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -14,16 +16,18 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _currentWord = '';
   String? _todayExample; // 오늘의 단어 예시 문장
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
   Map<String, String> _userInfo = {};
+  String? _userNickname; // 사용자 닉네임
   bool _isLoadingWord = true;
   bool _isLoadingWordInProgress = false; // 중복 호출 방지
   String? _cachedDate; // 캐시된 날짜
   final PageController _pageController = PageController(initialPage: 0);
+  late AnimationController _arrowAnimationController;
   List<Color> _gradientColors = [
     Color.fromRGBO(135, 206, 250, 1.0), // 기본 하늘색
     Color.fromRGBO(176, 224, 230, 0.5), // 기본 파란색 (연하게)
@@ -96,9 +100,91 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadUserInfo() async {
     final userInfo = await _authService.getUserInfo();
+    final nickname = await _firestoreService.getUserNickname();
     setState(() {
       _userInfo = userInfo;
+      _userNickname = nickname;
     });
+  }
+
+  Future<void> _showNicknameDialog() async {
+    final TextEditingController nicknameController = TextEditingController();
+
+    // 현재 닉네임 가져오기
+    try {
+      final profile = await _firestoreService.getUserProfile();
+      if (profile != null && profile['nickname'] != null) {
+        nicknameController.text = profile['nickname'] as String;
+      } else if (_userInfo['name']?.isNotEmpty == true) {
+        nicknameController.text = _userInfo['name']!;
+      }
+    } catch (e) {
+      print('닉네임 조회 오류: $e');
+    }
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('닉네임 설정'),
+        content: TextField(
+          controller: nicknameController,
+          decoration: const InputDecoration(
+            hintText: '닉네임을 입력하세요',
+            border: OutlineInputBorder(),
+          ),
+          maxLength: 20,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              final nickname = nicknameController.text.trim();
+              if (nickname.isNotEmpty) {
+                Navigator.pop(context, nickname);
+              }
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      try {
+        // 닉네임 유효성 검사
+        if (result.length > 20) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('닉네임은 20자 이하여야 합니다.')),
+            );
+          }
+          return;
+        }
+
+        await _firestoreService.updateUserProfile(nickname: result);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('닉네임이 저장되었습니다.')),
+          );
+          // 사용자 정보 다시 로드
+          await _loadUserInfo();
+        }
+      } catch (e) {
+        print('닉네임 저장 오류 상세: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('닉네임 저장 중 오류가 발생했습니다: ${e.toString()}'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _signOut() async {
@@ -269,6 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: PageView(
         controller: _pageController,
         scrollDirection: Axis.vertical,
+        physics: const _SensitivePageScrollPhysics(), // 민감한 스크롤 감도
         children: [
           // 첫 번째 페이지: 홈 화면
           Stack(
@@ -309,18 +396,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       PopupMenuButton<String>(
                         icon: CircleAvatar(
                           radius: 16,
-                          backgroundImage:
-                              _userInfo['photo']?.isNotEmpty == true
-                                  ? NetworkImage(_userInfo['photo']!)
-                                  : null,
-                          child: _userInfo['photo']?.isEmpty != false
-                              ? Icon(
-                                  Icons.person,
-                                  size: 20,
-                                  color: _getTextColorForBackground(
-                                      _gradientColors[0]),
-                                )
-                              : null,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surfaceVariant,
+                          child: const Text(
+                            '👤',
+                            style: TextStyle(fontSize: 20),
+                          ),
                         ),
                         color: Theme.of(context).colorScheme.surface,
                         onSelected: (value) async {
@@ -328,16 +409,44 @@ class _HomeScreenState extends State<HomeScreen> {
                             _signOut();
                           } else if (value == 'initDailyWords') {
                             await _initializeDailyWords();
+                          } else if (value == 'setNickname') {
+                            await _showNicknameDialog();
                           }
                         },
                         itemBuilder: (context) => [
-                          if (_userInfo['name']?.isNotEmpty == true)
+                          if (_userNickname != null &&
+                              _userNickname!.isNotEmpty)
                             PopupMenuItem(
-                              enabled: false,
-                              child: Text(
-                                _userInfo['name']!,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
+                              value: 'setNickname',
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _userNickname!,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.edit, size: 16),
+                                ],
+                              ),
+                            )
+                          else if (_userInfo['name']?.isNotEmpty == true)
+                            PopupMenuItem(
+                              value: 'setNickname',
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _userInfo['name']!,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.edit, size: 16),
+                                ],
                               ),
                             ),
                           if (_userInfo['email']?.isNotEmpty == true)
@@ -441,25 +550,39 @@ class _HomeScreenState extends State<HomeScreen> {
                               curve: Curves.easeInOut,
                             );
                           },
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.keyboard_arrow_down,
-                                size: 40,
-                                color: _getTextColorForBackground(
-                                        _gradientColors[0])
-                                    .withOpacity(0.5),
-                              ),
-                              Text(
-                                '아래로 스크롤',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: _getTextColorForBackground(
-                                          _gradientColors[0])
-                                      .withOpacity(0.5),
+                          child: AnimatedBuilder(
+                            animation: _arrowAnimationController,
+                            builder: (context, child) {
+                              return Transform.translate(
+                                offset: Offset(
+                                  0,
+                                  math.sin(_arrowAnimationController.value *
+                                          2 *
+                                          math.pi) *
+                                      8, // 위아래로 8픽셀 움직임
                                 ),
-                              ),
-                            ],
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.keyboard_arrow_down,
+                                      size: 40,
+                                      color: _getTextColorForBackground(
+                                              _gradientColors[0])
+                                          .withOpacity(0.5),
+                                    ),
+                                    Text(
+                                      '아래로 스크롤',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: _getTextColorForBackground(
+                                                _gradientColors[0])
+                                            .withOpacity(0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -485,9 +608,32 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         },
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         child: const Icon(Icons.edit),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
+}
+
+// 민감한 스크롤 감도를 위한 커스텀 ScrollPhysics
+class _SensitivePageScrollPhysics extends PageScrollPhysics {
+  const _SensitivePageScrollPhysics({ScrollPhysics? parent})
+      : super(parent: parent);
+
+  @override
+  _SensitivePageScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _SensitivePageScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  double get minFlingVelocity => 50.0; // 기본값보다 낮춰서 작은 스크롤에도 반응
+
+  @override
+  SpringDescription get spring => const SpringDescription(
+        mass: 0.5, // 더 가벼운 질량으로 빠른 반응
+        stiffness: 200.0,
+        damping: 0.8,
+      );
 }

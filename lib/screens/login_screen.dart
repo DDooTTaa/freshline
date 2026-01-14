@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 
@@ -9,9 +10,26 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
+  late AnimationController _gradientController;
+
+  @override
+  void initState() {
+    super.initState();
+    _gradientController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _gradientController.dispose();
+    super.dispose();
+  }
 
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -54,91 +72,169 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).colorScheme.primaryContainer,
-              Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(),
-                Icon(
-                  Icons.edit_note,
-                  size: 120,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(height: 32),
-                const Text(
-                  '언어 스트레칭',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '랜덤 단어 하나로 시작하는\n창작의 여정',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _signInWithGoogle,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.login, size: 24),
-                    label: Text(
-                      _isLoading ? '로그인 중...' : '구글로 로그인',
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+      backgroundColor: Colors.white,
+      body: AnimatedBuilder(
+        animation: _gradientController,
+        builder: (context, child) {
+          final t =
+              (_gradientController.lastElapsedDuration?.inMilliseconds ?? 0) /
+                  1000.0;
+
+          return Stack(
+            children: [
+              // 물결 배경
+              CustomPaint(
+                size: Size.infinite,
+                painter: WavePainter(t),
+              ),
+              // 콘텐츠
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Spacer(),
+                      const Text(
+                        '언어 스트레칭',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
                       ),
-                    ),
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _signInWithGoogle,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'G',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                          label: Text(
+                            _isLoading ? '로그인 중...' : '구글로 로그인',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.black,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            elevation: 2,
+                            side:
+                                const BorderSide(color: Colors.black, width: 1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  '로그인하여 작품을 저장하고\n다른 사용자와 공유하세요',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const Spacer(),
-              ],
-            ),
-          ),
-        ),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+}
+
+// 실 같은 물결 효과를 그리는 CustomPainter
+class WavePainter extends CustomPainter {
+  final double t;
+
+  WavePainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 여러 개의 실 같은 선 그리기 (4개로 줄임)
+    for (int i = 0; i < 4; i++) {
+      // 각 선마다 다른 속도와 방향
+      final speed = 0.05 + (i * 0.05);
+      final waveOffset = t * speed * 2 * math.pi + (i * math.pi / 6);
+      final amplitude = 15.0 + (i * 5.0);
+      final frequency = 0.01 + (i * 0.002);
+      // 중앙에 배치 (화면 중앙 기준으로 위아래로 분산)
+      final centerY = size.height * 0.5;
+      final spacing = 40.0;
+      final yOffset = centerY - (spacing * 1.5) + (i * spacing);
+
+      // 실 같은 얇은 선으로 그리기
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..strokeCap = StrokeCap.round;
+
+      // 흰색에서 검정색으로 그라데이션 (위에서 아래로)
+      final gradientProgress = (yOffset / size.height).clamp(0.0, 1.0);
+      final grayValue = (255 * gradientProgress).round();
+      final baseOpacity = 0.4 - (i * 0.03);
+
+      // 선을 여러 구간으로 나누어 페이드 효과 적용
+      final segmentWidth = size.width / 20; // 20개 구간으로 나눔
+
+      for (int segment = 0; segment < 20; segment++) {
+        final startX = segment * segmentWidth;
+        final endX = (segment + 1) * segmentWidth;
+
+        // 양 끝에서 페이드 인/아웃 효과
+        double fadeOpacity = 1.0;
+        if (segment < 3) {
+          // 왼쪽 끝: 페이드 인
+          fadeOpacity = segment / 3.0;
+        } else if (segment > 16) {
+          // 오른쪽 끝: 페이드 아웃
+          fadeOpacity = (20 - segment) / 3.0;
+        }
+
+        final path = Path();
+        bool isFirstPoint = true;
+
+        // 각 구간의 곡선 생성
+        for (double x = startX; x <= endX; x += 1) {
+          final y = yOffset +
+              amplitude *
+                  math.sin((x * frequency) + waveOffset) *
+                  (1.0 - (x / size.width) * 0.5);
+
+          if (isFirstPoint) {
+            path.moveTo(x, y);
+            isFirstPoint = false;
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+
+        // 각 구간마다 다른 투명도 적용
+        paint.color = Color.fromRGBO(grayValue, grayValue, grayValue,
+            baseOpacity * fadeOpacity.clamp(0.0, 1.0));
+
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(WavePainter oldDelegate) {
+    return oldDelegate.t != t;
   }
 }

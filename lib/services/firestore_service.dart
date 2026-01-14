@@ -486,9 +486,12 @@ class FirestoreService {
     }
 
     try {
+      // 닉네임 가져오기
+      final nickname = await getUserNickname();
+
       final docRef = await _firestore.collection('public_creations').add({
         'userId': _userId,
-        'userName': _auth.currentUser?.displayName ?? '익명',
+        'userName': nickname,
         'userPhoto': _auth.currentUser?.photoURL ?? '',
         'originalWords': creation.originalWords,
         'sentence': creation.sentence,
@@ -728,10 +731,12 @@ class FirestoreService {
     }
 
     try {
+      // 닉네임 가져오기
+      final nickname = await getUserNickname();
       final dateStr = _getDateString(wordDate);
       final docRef = await _firestore.collection('public_creations').add({
         'userId': _userId,
-        'userName': _auth.currentUser?.displayName ?? '익명',
+        'userName': nickname,
         'userPhoto': _auth.currentUser?.photoURL ?? '',
         'word': word,
         'wordDate': dateStr,
@@ -762,15 +767,32 @@ class FirestoreService {
         .where('wordDate', isEqualTo: today)
         .limit(100)
         .snapshots()
-        .map((snapshot) {
-      final list = snapshot.docs.map((doc) {
+        .asyncMap((snapshot) async {
+      final list = await Future.wait(snapshot.docs.map((doc) async {
         final data = doc.data();
+        final userId = data['userId'] as String? ?? '';
+
+        // 사용자 닉네임 조회
+        String userName = data['userName'] as String? ?? '익명';
+        if (userId.isNotEmpty) {
+          try {
+            final userDoc =
+                await _firestore.collection('users').doc(userId).get();
+            if (userDoc.exists && userDoc.data()?['nickname'] != null) {
+              userName = userDoc.data()!['nickname'] as String;
+            }
+          } catch (e) {
+            print('닉네임 조회 오류: $e');
+          }
+        }
+
         return {
           'id': doc.id,
           ...data,
+          'userName': userName, // 닉네임으로 업데이트
           'createdAt': (data['createdAt'] as Timestamp).toDate(),
         };
-      }).toList();
+      }));
 
       // 클라이언트에서 날짜순 정렬
       list.sort((a, b) {
@@ -837,6 +859,14 @@ class FirestoreService {
       Color.fromRGBO(135, 206, 250, 1.0), // 하늘색
       Color.fromRGBO(176, 224, 230, 1.0), // 파란색
     ];
+  }
+
+  // 단어로부터 색상 가져오기 (public 메서드)
+  List<Color> getWordColors(String word) {
+    final colorMap = _getWordColors(word);
+    return colorMap.map((color) {
+      return Color.fromRGBO(color['r']!, color['g']!, color['b']!, 1.0);
+    }).toList();
   }
 
   // 오늘의 단어 예시 문장 가져오기
@@ -1218,14 +1248,31 @@ class FirestoreService {
           .limit(100)
           .get();
 
-      final list = creationsSnapshot.docs.map((doc) {
+      final list = await Future.wait(creationsSnapshot.docs.map((doc) async {
         final data = doc.data();
+        final userId = data['userId'] as String? ?? '';
+
+        // 사용자 닉네임 조회
+        String userName = data['userName'] as String? ?? '익명';
+        if (userId.isNotEmpty) {
+          try {
+            final userDoc =
+                await _firestore.collection('users').doc(userId).get();
+            if (userDoc.exists && userDoc.data()?['nickname'] != null) {
+              userName = userDoc.data()!['nickname'] as String;
+            }
+          } catch (e) {
+            print('닉네임 조회 오류: $e');
+          }
+        }
+
         return {
           'id': doc.id,
           ...data,
+          'userName': userName, // 닉네임으로 업데이트
           'createdAt': (data['createdAt'] as Timestamp).toDate(),
         };
-      }).toList();
+      }));
 
       // 날짜순 정렬
       list.sort((a, b) {
@@ -1236,5 +1283,85 @@ class FirestoreService {
 
       return list;
     });
+  }
+
+  // 사용자 프로필 저장/업데이트
+  Future<void> updateUserProfile({
+    String? nickname,
+    String? photoUrl,
+  }) async {
+    if (_userId.isEmpty) {
+      throw Exception('사용자가 로그인되지 않았습니다.');
+    }
+
+    try {
+      final userRef = _firestore.collection('users').doc(_userId);
+      final userData = <String, dynamic>{};
+
+      if (nickname != null && nickname.isNotEmpty) {
+        userData['nickname'] = nickname;
+      }
+
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        userData['photoUrl'] = photoUrl;
+      }
+
+      // 최소한 하나의 필드가 있어야 함
+      if (userData.isEmpty) {
+        throw Exception('저장할 데이터가 없습니다.');
+      }
+
+      // 업데이트 시간 추가
+      userData['updatedAt'] = FieldValue.serverTimestamp();
+
+      // createdAt이 없으면 추가
+      final currentDoc = await userRef.get();
+      if (!currentDoc.exists) {
+        userData['createdAt'] = FieldValue.serverTimestamp();
+        userData['userId'] = _userId;
+        userData['email'] = _auth.currentUser?.email ?? '';
+      }
+
+      await userRef.set(userData, SetOptions(merge: true));
+    } catch (e) {
+      print('사용자 프로필 업데이트 오류: $e');
+      rethrow;
+    }
+  }
+
+  // 사용자 프로필 조회
+  Future<Map<String, dynamic>?> getUserProfile() async {
+    if (_userId.isEmpty) {
+      return null;
+    }
+
+    try {
+      final userDoc = await _firestore.collection('users').doc(_userId).get();
+      if (userDoc.exists) {
+        return userDoc.data();
+      }
+      return null;
+    } catch (e) {
+      print('사용자 프로필 조회 오류: $e');
+      return null;
+    }
+  }
+
+  // 사용자 닉네임 가져오기 (닉네임이 없으면 displayName 반환)
+  Future<String> getUserNickname() async {
+    if (_userId.isEmpty) {
+      return _auth.currentUser?.displayName ?? '익명';
+    }
+
+    try {
+      final profile = await getUserProfile();
+      if (profile != null && profile['nickname'] != null) {
+        return profile['nickname'] as String;
+      }
+      return _auth.currentUser?.displayName ?? '익명';
+    } catch (e) {
+      print('닉네임 조회 오류: $e');
+      return _auth.currentUser?.displayName ?? '익명';
+    }
   }
 }
