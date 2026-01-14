@@ -509,20 +509,40 @@ class FirestoreService {
 
   // 공개 작품 목록 가져오기
   Stream<List<Map<String, dynamic>>> getPublicCreations() {
+    // wordDate 필터 없이 모든 공개 작품을 최근 순으로 가져오기
     return _firestore
         .collection('public_creations')
         .orderBy('createdAt', descending: true)
-        .limit(50)
+        .limit(100)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
+        .asyncMap((snapshot) async {
+      final list = await Future.wait(snapshot.docs.map((doc) async {
         final data = doc.data();
+        final userId = data['userId'] as String? ?? '';
+
+        // 사용자 닉네임 조회
+        String userName = data['userName'] as String? ?? '익명';
+        if (userId.isNotEmpty) {
+          try {
+            final userDoc =
+                await _firestore.collection('users').doc(userId).get();
+            if (userDoc.exists && userDoc.data()?['nickname'] != null) {
+              userName = userDoc.data()!['nickname'] as String;
+            }
+          } catch (e) {
+            print('닉네임 조회 오류: $e');
+          }
+        }
+
         return {
           'id': doc.id,
           ...data,
+          'userName': userName, // 닉네임으로 업데이트
           'createdAt': (data['createdAt'] as Timestamp).toDate(),
         };
-      }).toList();
+      }));
+      
+      return list;
     });
   }
 
@@ -583,10 +603,10 @@ class FirestoreService {
       final now = DateTime.now();
       final recentDates = List.generate(
           days, (i) => _getDateString(now.subtract(Duration(days: i))));
-
+      
       final futures = recentDates
           .map((date) => _firestore.collection('daily_words').doc(date).get());
-
+      
       final docs = await Future.wait(futures);
       return docs
           .where((doc) => doc.exists && doc.data() != null)
@@ -601,7 +621,7 @@ class FirestoreService {
   // 오늘의 단어 가져오기
   Future<String> getTodayWord() async {
     final today = _getDateString(DateTime.now());
-
+    
     // 먼저 오늘의 단어가 있는지 확인 (읽기만)
     try {
       final doc = await _firestore.collection('daily_words').doc(today).get();
@@ -613,7 +633,7 @@ class FirestoreService {
       // 읽기 실패 시 기본 단어 반환
       return WordService.getRandomWords(count: 1).first;
     }
-
+    
     // 오늘의 단어가 없으면 생성 (인증된 사용자만 가능)
     try {
       // 최근 단어 가져오기 (실패해도 계속 진행)
@@ -623,14 +643,14 @@ class FirestoreService {
       } catch (e) {
         print('최근 단어 가져오기 실패 (무시하고 계속): $e');
       }
-
+      
       // 단어 풀 가져오기
       final wordPool = await _getWordPool();
-
+      
       // 최근 7일간 사용된 단어는 제외하여 중복 방지
       final availableWords =
           wordPool.where((word) => !recentWords.contains(word)).toList();
-
+      
       String selectedWord;
       if (availableWords.isNotEmpty) {
         availableWords.shuffle();
@@ -640,13 +660,13 @@ class FirestoreService {
         final shuffledPool = List<String>.from(wordPool)..shuffle();
         selectedWord = shuffledPool.first;
       }
-
+      
       // 트랜잭션을 사용하여 동시성 문제 해결
       try {
         return await _firestore.runTransaction<String>((transaction) async {
           final docRef = _firestore.collection('daily_words').doc(today);
           final doc = await transaction.get(docRef);
-
+          
           if (doc.exists && doc.data() != null) {
             return doc.data()!['word'] as String;
           } else {
@@ -690,7 +710,7 @@ class FirestoreService {
   // 특정 날짜의 단어 가져오기
   Future<String?> getWordByDate(DateTime date) async {
     final dateStr = _getDateString(date);
-
+    
     try {
       final doc = await _firestore.collection('daily_words').doc(dateStr).get();
       if (doc.exists && doc.data() != null) {
@@ -706,7 +726,7 @@ class FirestoreService {
   // 날짜별 단어 설정 (관리자용)
   Future<bool> setWordForDate(DateTime date, String word) async {
     final dateStr = _getDateString(date);
-
+    
     try {
       final colors = _getWordColors(word);
       await _firestore.collection('daily_words').doc(dateStr).set({
@@ -758,7 +778,7 @@ class FirestoreService {
   // 오늘의 단어에 대한 공개 작품 목록 가져오기 (daily_words에서 가져온 단어 사용)
   Stream<List<Map<String, dynamic>>> getTodayWordCreations() {
     final today = _getDateString(DateTime.now());
-
+    
     // daily_words에서 오늘의 단어를 가져와서 필터링
     // 날짜로 필터링 (wordDate 필드 사용)
     // orderBy 없이 가져온 후 클라이언트에서 정렬 (인덱스 문제 방지)
@@ -793,14 +813,14 @@ class FirestoreService {
           'createdAt': (data['createdAt'] as Timestamp).toDate(),
         };
       }));
-
+      
       // 클라이언트에서 날짜순 정렬
       list.sort((a, b) {
         final aDate = a['createdAt'] as DateTime;
         final bDate = b['createdAt'] as DateTime;
         return bDate.compareTo(aDate); // 내림차순
       });
-
+      
       return list;
     });
   }
@@ -808,7 +828,7 @@ class FirestoreService {
   // 오늘의 단어 가져오기 (daily_words에서)
   Future<String> getTodayWordFromDailyWords() async {
     final today = _getDateString(DateTime.now());
-
+    
     try {
       final doc = await _firestore.collection('daily_words').doc(today).get();
       if (doc.exists && doc.data() != null) {
@@ -817,7 +837,7 @@ class FirestoreService {
     } catch (e) {
       print('daily_words에서 오늘의 단어 가져오기 오류: $e');
     }
-
+    
     // 없으면 기본 단어 반환
     return WordService.getRandomWords(count: 1).first;
   }
@@ -889,7 +909,7 @@ class FirestoreService {
   // 특정 날짜의 공개 작품 목록 가져오기
   Stream<List<Map<String, dynamic>>> getWordCreationsByDate(DateTime date) {
     final dateStr = _getDateString(date);
-
+    
     return _firestore
         .collection('public_creations')
         .where('wordDate', isEqualTo: dateStr)
@@ -920,7 +940,7 @@ class FirestoreService {
 
       // WordService에서 모든 단어 가져오기
       final words = WordService.getAllWords();
-
+      
       // Firebase에 단어 추가
       final batch = _firestore.batch();
       for (final word in words) {
@@ -930,7 +950,7 @@ class FirestoreService {
           'createdAt': Timestamp.now(),
         });
       }
-
+      
       await batch.commit();
       print('단어 풀 초기화 완료: ${words.length}개 단어 추가됨');
       return true;
@@ -948,7 +968,7 @@ class FirestoreService {
           .collection('word_pool')
           .where('word', isEqualTo: word)
           .get();
-
+      
       if (existingSnapshot.docs.isNotEmpty) {
         print('이미 존재하는 단어입니다: $word');
         return false;
@@ -958,7 +978,7 @@ class FirestoreService {
         'word': word,
         'createdAt': Timestamp.now(),
       });
-
+      
       print('단어 추가 완료: $word');
       return true;
     } catch (e) {
@@ -1073,7 +1093,7 @@ class FirestoreService {
         final date = today.add(Duration(days: i));
         final dateStr = _getDateString(date);
         final wordData = wordsWithExamples[i];
-
+        
         // 이미 해당 날짜에 단어가 있는지 확인
         final existingDoc =
             await _firestore.collection('daily_words').doc(dateStr).get();

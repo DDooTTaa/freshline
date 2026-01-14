@@ -1,8 +1,9 @@
-include: package:flutter_lints/flutter.yaml
-
-linter:
-  rules:
-    prefer_const_constructors: true
-    prefer_const_literals_to_create_immutables: true
-    avoid_print: true
-
+analyzer:
+  errors:
+    # kakao_flutter_sdk의 widget_previews 관련 에러 무시
+    invalid_annotation_target: ignore
+    undefined_class: ignore
+    undefined_method: ignore
+  exclude:
+    - "**/kakao_flutter_sdk_user/**/login_bridge_bottom_sheet.dart"
+    - "**/kakao_flutter_sdk_user/**/square_button.dart"

@@ -465,12 +465,12 @@ class _CreationScreenState extends State<CreationScreen> {
       // 커뮤니티 공유 (체크박스가 체크되어 있을 때만)
       if (_shareToCommunity && _originalWords.isNotEmpty) {
         try {
-          final todayWord = _originalWords[0]; // 오늘의 단어
-          await _firestoreService.savePublicCreationWithWord(
-            creation,
-            todayWord,
-            DateTime.now(),
-          );
+        final todayWord = _originalWords[0]; // 오늘의 단어
+        await _firestoreService.savePublicCreationWithWord(
+          creation,
+          todayWord,
+          DateTime.now(),
+        );
         } catch (e) {
           // 공유 실패해도 개인 작품 저장은 성공했으므로 계속 진행
           print('커뮤니티 공유 실패: $e');

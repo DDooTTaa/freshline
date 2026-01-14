@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _cachedDate; // 캐시된 날짜
   final PageController _pageController = PageController(initialPage: 0);
   late AnimationController _arrowAnimationController;
+  int _communityScreenKey = 0; // CommunityScreen 재생성을 위한 key
   List<Color> _gradientColors = [
     Color.fromRGBO(135, 206, 250, 1.0), // 기본 하늘색
     Color.fromRGBO(176, 224, 230, 0.5), // 기본 파란색 (연하게)
@@ -37,6 +38,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _arrowAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
     _initializeWordPoolIfNeeded();
     _loadTodayWord();
     _loadUserInfo();
@@ -105,6 +110,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _userInfo = userInfo;
       _userNickname = nickname;
     });
+  }
+
+  Future<void> _showWordSelectionDialog() async {
+    final words = WordService.getAllWords();
+    
+    final selectedWord = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('글감 선택'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView.builder(
+            itemCount: words.length,
+            itemBuilder: (context, index) {
+              final word = words[index];
+              final isSelected = word == _currentWord;
+              return ListTile(
+                title: Text(word),
+                selected: isSelected,
+                onTap: () {
+                  Navigator.pop(context, word);
+                },
+                trailing: isSelected
+                    ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
+                    : null,
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedWord != null && selectedWord.isNotEmpty) {
+      // 선택한 단어로 오늘의 단어 변경
+      setState(() {
+        _currentWord = selectedWord;
+        // 선택한 단어의 색상으로 즉시 업데이트
+        final colors = _firestoreService.getWordColors(selectedWord);
+        if (colors.length >= 2) {
+          _gradientColors = [
+            colors[0], // 상단 색상
+            colors[1].withOpacity(0.4), // 하단 색상을 더 연하게
+            Colors.white, // 흰색
+          ];
+        }
+      });
+      // 예시도 업데이트 (선택 사항)
+      _loadTodayWordExample();
+    }
   }
 
   Future<void> _showNicknameDialog() async {
@@ -344,6 +405,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _arrowAnimationController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -378,42 +440,60 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.collections_bookmark),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const GalleryScreen(),
-                            ),
-                          );
-                        },
-                        tooltip: '내 작품 모아보기',
-                        color: _getTextColorForBackground(_gradientColors[0]),
+                      // 왼쪽: 글감 선택 버튼
+                      TextButton.icon(
+                        onPressed: _showWordSelectionDialog,
+                        icon: Icon(
+                          Icons.edit_note,
+                          color: _getTextColorForBackground(_gradientColors[0]),
+                        ),
+                        label: Text(
+                          '글감 선택',
+                          style: TextStyle(
+                            color: _getTextColorForBackground(_gradientColors[0]),
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
-                      PopupMenuButton<String>(
-                        icon: CircleAvatar(
-                          radius: 16,
+                      // 오른쪽: 갤러리 및 프로필 버튼
+                      Row(
+                        children: [
+          IconButton(
+            icon: const Icon(Icons.collections_bookmark),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const GalleryScreen(),
+                ),
+              );
+            },
+            tooltip: '내 작품 모아보기',
+                        color: _getTextColorForBackground(_gradientColors[0]),
+          ),
+          PopupMenuButton<String>(
+            icon: CircleAvatar(
+              radius: 16,
                           backgroundColor:
                               Theme.of(context).colorScheme.surfaceVariant,
                           child: const Text(
                             '👤',
                             style: TextStyle(fontSize: 20),
                           ),
-                        ),
+            ),
                         color: Theme.of(context).colorScheme.surface,
-                        onSelected: (value) async {
-                          if (value == 'logout') {
-                            _signOut();
-                          } else if (value == 'initDailyWords') {
-                            await _initializeDailyWords();
+            onSelected: (value) async {
+              if (value == 'logout') {
+                _signOut();
+              } else if (value == 'initDailyWords') {
+                await _initializeDailyWords();
                           } else if (value == 'setNickname') {
                             await _showNicknameDialog();
-                          }
-                        },
-                        itemBuilder: (context) => [
+              }
+            },
+            itemBuilder: (context) => [
                           if (_userNickname != null &&
                               _userNickname!.isNotEmpty)
                             PopupMenuItem(
@@ -433,13 +513,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             )
                           else if (_userInfo['name']?.isNotEmpty == true)
-                            PopupMenuItem(
+                PopupMenuItem(
                               value: 'setNickname',
                               child: Row(
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                      _userInfo['name']!,
+                  child: Text(
+                    _userInfo['name']!,
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold),
                                     ),
@@ -447,43 +527,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   const SizedBox(width: 8),
                                   const Icon(Icons.edit, size: 16),
                                 ],
-                              ),
-                            ),
-                          if (_userInfo['email']?.isNotEmpty == true)
-                            PopupMenuItem(
-                              enabled: false,
-                              child: Text(
-                                _userInfo['email']!,
-                                style: TextStyle(
-                                  fontSize: 12,
+                  ),
+                ),
+              if (_userInfo['email']?.isNotEmpty == true)
+                PopupMenuItem(
+                  enabled: false,
+                  child: Text(
+                    _userInfo['email']!,
+                    style: TextStyle(
+                      fontSize: 12,
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          const PopupMenuDivider(),
-                          const PopupMenuItem(
-                            value: 'initDailyWords',
-                            child: Row(
-                              children: [
-                                Icon(Icons.calendar_today, size: 20),
-                                SizedBox(width: 8),
-                                Text('날짜별 단어 초기화'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuDivider(),
-                          const PopupMenuItem(
-                            value: 'logout',
-                            child: Row(
-                              children: [
-                                Icon(Icons.logout, size: 20),
-                                SizedBox(width: 8),
-                                Text('로그아웃'),
-                              ],
-                            ),
-                          ),
+                    ),
+                  ),
+                ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'initDailyWords',
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 20),
+                    SizedBox(width: 8),
+                    Text('날짜별 단어 초기화'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, size: 20),
+                    SizedBox(width: 8),
+                    Text('로그아웃'),
+                  ],
+                ),
+              ),
+            ],
+          ),
                         ],
                       ),
                     ],
@@ -496,17 +578,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: SizedBox(
                   width: double.infinity,
                   height: double.infinity,
-                  child: Padding(
+          child: Padding(
                     padding: const EdgeInsets.only(
                       top: 24.0,
                       left: 24.0,
                       right: 24.0,
                       bottom: 100.0, // 플로팅 버튼 공간 확보
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Spacer(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(),
                         // 글감 (오늘의 단어)
                         if (_isLoadingWord)
                           CircularProgressIndicator(
@@ -516,13 +598,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         else if (_currentWord.isNotEmpty)
                           Text(
                             _currentWord,
-                            style: TextStyle(
+                  style: TextStyle(
                               fontSize: 56,
-                              fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                               color: _getTextColorForBackground(
                                   _gradientColors[0]),
-                            ),
-                          ),
+                  ),
+                ),
                         const SizedBox(height: 32),
                         // 예시 문장
                         if (_todayExample != null && _todayExample!.isNotEmpty)
@@ -560,9 +642,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           2 *
                                           math.pi) *
                                       8, // 위아래로 8픽셀 움직임
-                                ),
-                                child: Column(
-                                  children: [
+                    ),
+                    child: Column(
+                      children: [
                                     Icon(
                                       Icons.keyboard_arrow_down,
                                       size: 40,
@@ -572,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     ),
                                     Text(
                                       '아래로 스크롤',
-                                      style: TextStyle(
+                          style: TextStyle(
                                         fontSize: 14,
                                         color: _getTextColorForBackground(
                                                 _gradientColors[0])
@@ -594,24 +676,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           // 두 번째 페이지: 커뮤니티 화면
-          const CommunityScreen(),
+          CommunityScreen(key: ValueKey(_communityScreenKey)),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreationScreen(
-                initialWord: _currentWord,
-              ),
-            ),
-          );
-        },
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CreationScreen(
+                            initialWord: _currentWord,
+                          ),
+                        ),
+                      );
+                      // 글쓰기 화면에서 돌아올 때 커뮤니티 화면 강제 재렌더링
+                      if (mounted) {
+                        setState(() {
+                          // CommunityScreen을 재생성하기 위해 key 변경
+                          _communityScreenKey++;
+                        });
+                        // 커뮤니티 화면으로 이동하여 재렌더링
+                        if (_pageController.hasClients) {
+                          _pageController.animateToPage(
+                            1,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      }
+                    },
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         child: const Icon(Icons.edit),
-      ),
+                    ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -635,5 +732,5 @@ class _SensitivePageScrollPhysics extends PageScrollPhysics {
         mass: 0.5, // 더 가벼운 질량으로 빠른 반응
         stiffness: 200.0,
         damping: 0.8,
-      );
+    );
 }

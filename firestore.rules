@@ -26,6 +26,15 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
+    // 팔로우 관계 (follows 컬렉션) - 인증된 사용자가 읽기/쓰기 가능
+    match /follows/{followId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null 
+        && request.resource.data.followerId == request.auth.uid;
+      allow update, delete: if request.auth != null 
+        && resource.data.followerId == request.auth.uid;
+    }
+    
     // 개인 작품 - 본인만 읽기/쓰기 가능
     match /users/{userId}/creations/{creationId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;

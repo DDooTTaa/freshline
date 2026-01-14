@@ -1,7 +1,9 @@
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'firestore_service.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -86,12 +88,120 @@ class AuthService {
     }
   }
 
+  Future<bool> signInWithKakao() async {
+    try {
+      if (kIsWeb) {
+        // 웹에서는 Firebase Auth의 OAuthProvider 사용
+        // Firebase Console에서 Kakao 제공업체를 활성화하고 설정해야 함
+        // 웹에서는 카카오 JavaScript SDK를 사용해야 하므로
+        // 일단 모바일 방식으로 처리하거나, 웹용 카카오 SDK 사용 필요
+        // 현재는 모바일 방식으로 통일
+        return false; // 웹 지원은 추후 구현
+      } else {
+        // 모바일에서는 카카오 SDK 사용
+        // 카카오톡으로 로그인 시도
+        kakao.OAuthToken token;
+        final isKakaoTalkInstalled = await kakao.isKakaoTalkInstalled();
+
+        if (isKakaoTalkInstalled) {
+          // 카카오톡이 설치되어 있으면 카카오톡으로 로그인
+          token = await kakao.UserApi.instance.loginWithKakaoTalk();
+        } else {
+          // 카카오톡이 없으면 카카오계정으로 로그인
+          token = await kakao.UserApi.instance.loginWithKakaoAccount();
+        }
+
+        // 사용자 정보 가져오기
+        kakao.User kakaoUser = await kakao.UserApi.instance.me();
+
+        if (kakaoUser.id != null) {
+          // Firebase Auth에 카카오 로그인 연동
+          try {
+            // 카카오 액세스 토큰을 사용하여 Firebase에 로그인
+            final credential = OAuthProvider("oidc.kakao").credential(
+              idToken: token.idToken,
+              accessToken: token.accessToken,
+            );
+
+            final userCredential = await _auth.signInWithCredential(credential);
+
+            if (userCredential.user != null) {
+              _isSignedIn = true;
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('is_signed_in', true);
+
+              // 카카오에서 받은 사용자 정보 사용
+              final email = kakaoUser.kakaoAccount?.email ??
+                  userCredential.user!.email ??
+                  '';
+              final name = kakaoUser.kakaoAccount?.profile?.nickname ??
+                  userCredential.user!.displayName ??
+                  '';
+              final photo = kakaoUser.kakaoAccount?.profile?.profileImageUrl ??
+                  userCredential.user!.photoURL ??
+                  '';
+
+              await prefs.setString('user_email', email);
+              await prefs.setString('user_name', name);
+              await prefs.setString('user_photo', photo);
+
+              // Firestore에 사용자 정보 저장
+              try {
+                final firestoreService = FirestoreService();
+                await firestoreService.updateUserProfile(
+                  nickname: name.isNotEmpty ? name : null,
+                  photoUrl: photo.isNotEmpty ? photo : null,
+                );
+              } catch (e) {
+                print('Firestore 사용자 정보 저장 오류: $e');
+                // 오류가 발생해도 로그인은 성공한 것으로 처리
+              }
+
+              return true;
+            }
+          } catch (firebaseError) {
+            print('Firebase 연동 오류: $firebaseError');
+            // Firebase 연동 실패 시에도 카카오 로그인은 성공한 것으로 처리
+            // 하지만 Firebase 기능(예: Firestore)은 사용할 수 없음
+            _isSignedIn = true;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('is_signed_in', true);
+
+            final email = kakaoUser.kakaoAccount?.email ?? '';
+            final name = kakaoUser.kakaoAccount?.profile?.nickname ?? '';
+            final photo =
+                kakaoUser.kakaoAccount?.profile?.profileImageUrl ?? '';
+
+            await prefs.setString('user_email', email);
+            await prefs.setString('user_name', name);
+            await prefs.setString('user_photo', photo);
+
+            // Firebase 연동이 실패했으므로 Firestore 저장은 시도하지 않음
+            print('Firebase 연동 실패로 인해 Firestore 저장을 건너뜁니다.');
+
+            return true;
+          }
+        }
+        return false;
+      }
+    } catch (e) {
+      print('카카오 로그인 오류: $e');
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       if (kIsWeb) {
         await _auth.signOut();
       } else {
         await _googleSignIn.signOut();
+        // 카카오 로그아웃
+        try {
+          await kakao.UserApi.instance.unlink();
+        } catch (e) {
+          print('카카오 로그아웃 오류: $e');
+        }
       }
 
       _currentUser = null;

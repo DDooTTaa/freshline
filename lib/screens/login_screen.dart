@@ -69,6 +69,44 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  Future<void> _signInWithKakao() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await _authService.signInWithKakao();
+      if (success && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HomeScreen(),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('로그인에 실패했습니다. 다시 시도해주세요.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('오류가 발생했습니다: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,7 +120,50 @@ class _LoginScreenState extends State<LoginScreen>
 
           return Stack(
             children: [
-              // 물결 배경
+              // 로고 이미지 (배경)
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/images/Langth.png',
+                      height: 350,
+                      width: 350,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 0),
+                    const Text(
+                      '진부하지 않은 문장 만들기',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.black54,
+                        fontStyle: FontStyle.italic,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 중앙이 흰색인 보라색 원형 그라데이션 (은은하게)
+              Center(
+                child: Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.2,
+                      colors: [
+                        Colors.white.withOpacity(0.0),
+                        Colors.purple.withOpacity(0.08),
+                        Colors.purple.withOpacity(0.12),
+                      ],
+                      stops: const [0.0, 0.7, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              // 물결 배경 (이미지 위로 지나감)
               CustomPaint(
                 size: Size.infinite,
                 painter: WavePainter(t),
@@ -92,18 +173,52 @@ class _LoginScreenState extends State<LoginScreen>
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      const Spacer(),
-                      const Text(
-                        '언어 스트레칭',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                      // 카카오 로그인 버튼
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _signInWithKakao,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'K',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                          label: Text(
+                            _isLoading ? '로그인 중...' : '카카오로 로그인',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.black,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            elevation: 2,
+                            side:
+                                const BorderSide(color: Colors.black, width: 1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(height: 12),
+                      // 구글 로그인 버튼
                       SizedBox(
                         width: double.infinity,
                         height: 56,
@@ -145,7 +260,6 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                       ),
-                      const Spacer(),
                     ],
                   ),
                 ),
@@ -173,8 +287,8 @@ class WavePainter extends CustomPainter {
       final waveOffset = t * speed * 2 * math.pi + (i * math.pi / 6);
       final amplitude = 15.0 + (i * 5.0);
       final frequency = 0.01 + (i * 0.002);
-      // 중앙에 배치 (화면 중앙 기준으로 위아래로 분산)
-      final centerY = size.height * 0.5;
+      // 중앙보다 50px 위에 배치 (화면 중앙 기준으로 위아래로 분산)
+      final centerY = size.height * 0.5 - 30;
       final spacing = 40.0;
       final yOffset = centerY - (spacing * 1.5) + (i * spacing);
 
@@ -184,9 +298,34 @@ class WavePainter extends CustomPainter {
         ..strokeWidth = 1
         ..strokeCap = StrokeCap.round;
 
-      // 흰색에서 검정색으로 그라데이션 (위에서 아래로)
+      // 각 선마다 다른 색상 톤 적용
       final gradientProgress = (yOffset / size.height).clamp(0.0, 1.0);
-      final grayValue = (255 * gradientProgress).round();
+      final baseGrayValue = (255 * gradientProgress).round();
+
+      // 각 선마다 다른 색상 변형 적용
+      int r, g, b;
+      switch (i % 4) {
+        case 0: // 첫 번째 선: 약간 파란색 톤
+          r = ((baseGrayValue * 0.9).round()).clamp(0, 255);
+          g = ((baseGrayValue * 0.95).round()).clamp(0, 255);
+          b = baseGrayValue.clamp(0, 255);
+          break;
+        case 1: // 두 번째 선: 약간 보라색 톤
+          r = ((baseGrayValue * 0.95).round()).clamp(0, 255);
+          g = ((baseGrayValue * 0.9).round()).clamp(0, 255);
+          b = baseGrayValue.clamp(0, 255);
+          break;
+        case 2: // 세 번째 선: 약간 녹색 톤
+          r = ((baseGrayValue * 0.95).round()).clamp(0, 255);
+          g = baseGrayValue.clamp(0, 255);
+          b = ((baseGrayValue * 0.9).round()).clamp(0, 255);
+          break;
+        default: // 네 번째 선: 순수 회색
+          r = baseGrayValue.clamp(0, 255);
+          g = baseGrayValue.clamp(0, 255);
+          b = baseGrayValue.clamp(0, 255);
+      }
+
       final baseOpacity = 0.4 - (i * 0.03);
 
       // 선을 여러 구간으로 나누어 페이드 효과 적용
@@ -225,8 +364,8 @@ class WavePainter extends CustomPainter {
         }
 
         // 각 구간마다 다른 투명도 적용
-        paint.color = Color.fromRGBO(grayValue, grayValue, grayValue,
-            baseOpacity * fadeOpacity.clamp(0.0, 1.0));
+        paint.color =
+            Color.fromRGBO(r, g, b, baseOpacity * fadeOpacity.clamp(0.0, 1.0));
 
         canvas.drawPath(path, paint);
       }
