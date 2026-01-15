@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _cachedDate; // 캐시된 날짜
   final PageController _pageController = PageController(initialPage: 0);
   late AnimationController _arrowAnimationController;
+  late AnimationController _waveAnimationController;
   int _communityScreenKey = 0; // CommunityScreen 재생성을 위한 key
   List<Color> _gradientColors = [
     Color.fromRGBO(135, 206, 250, 1.0), // 기본 하늘색
@@ -41,6 +42,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _arrowAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
+    )..repeat();
+    _waveAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
     )..repeat();
     _initializeWordPoolIfNeeded();
     _loadTodayWord();
@@ -84,12 +89,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Color _getTextColorForBackground(Color backgroundColor) {
     // 색상의 밝기 계산 (0.0 ~ 1.0)
     final brightness = backgroundColor.computeLuminance();
-    // 디버깅: 밝기 값 출력
-    print(
-        '배경색: R=${backgroundColor.red}, G=${backgroundColor.green}, B=${backgroundColor.blue}');
-    print('밝기(luminance): $brightness');
-    print('선택된 텍스트 색상: ${brightness > 0.5 ? "검정" : "하양"}');
-    // 밝기가 0.5보다 크면 검정, 작으면 하양
+    // 밝기가 0.3보다 크면 검정, 작으면 하양
     return brightness > 0.3 ? Colors.black : Colors.white;
   }
 
@@ -406,6 +406,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _arrowAnimationController.dispose();
+    _waveAnimationController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -433,6 +434,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     colors: _gradientColors,
                   ),
                 ),
+              ),
+              // 물결 애니메이션
+              AnimatedBuilder(
+                animation: _waveAnimationController,
+                builder: (context, child) {
+                  final t = (_waveAnimationController.lastElapsedDuration
+                              ?.inMilliseconds ??
+                          0) /
+                      1000.0;
+                  return CustomPaint(
+                    size: Size.infinite,
+                    painter: _HomeWavePainter(t),
+                  );
+                },
               ),
               // 상단 네비게이션 버튼들
               SafeArea(
@@ -676,7 +691,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           // 두 번째 페이지: 커뮤니티 화면
-          CommunityScreen(key: ValueKey(_communityScreenKey)),
+          CommunityScreen(
+            key: ValueKey(_communityScreenKey),
+            onNavigateToHome: () {
+              if (_pageController.hasClients) {
+                _pageController.animateToPage(
+                  0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
+            },
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -689,20 +715,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                       );
-                      // 글쓰기 화면에서 돌아올 때 커뮤니티 화면 강제 재렌더링
-                      if (mounted) {
-                        setState(() {
-                          // CommunityScreen을 재생성하기 위해 key 변경
-                          _communityScreenKey++;
-                        });
-                        // 커뮤니티 화면으로 이동하여 재렌더링
-                        if (_pageController.hasClients) {
-                          _pageController.animateToPage(
-                            1,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        }
+                      // 커뮤니티 화면으로 이동 (StreamBuilder가 자동으로 새 데이터를 가져옴)
+                      if (mounted && _pageController.hasClients) {
+                        _pageController.animateToPage(
+                          1,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
                       }
                     },
         backgroundColor: Colors.white,
@@ -733,4 +752,110 @@ class _SensitivePageScrollPhysics extends PageScrollPhysics {
         stiffness: 200.0,
         damping: 0.8,
     );
+}
+
+// 홈 화면용 물결 효과를 그리는 CustomPainter
+class _HomeWavePainter extends CustomPainter {
+  final double t;
+
+  _HomeWavePainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 4개의 실 같은 선 그리기
+    for (int i = 0; i < 4; i++) {
+      // 각 선마다 다른 속도와 방향
+      final speed = 0.05 + (i * 0.05);
+      final waveOffset = t * speed * 2 * math.pi + (i * math.pi / 6);
+      final amplitude = 15.0 + (i * 5.0);
+      final frequency = 0.01 + (i * 0.002);
+      // 중앙보다 50px 위에 배치 (화면 중앙 기준으로 위아래로 분산)
+      final centerY = size.height * 0.5 - 30;
+      final spacing = 30.0; // 간격을 30으로 설정
+      final yOffset = centerY - (spacing * 1.5) + (i * spacing);
+
+      // 실 같은 얇은 선으로 그리기
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..strokeCap = StrokeCap.round;
+
+      // 각 선마다 다른 색상 톤 적용
+      final gradientProgress = (yOffset / size.height).clamp(0.0, 1.0);
+      final baseGrayValue = (255 * gradientProgress).round();
+
+      // 각 선마다 다른 색상 변형 적용
+      int r, g, b;
+      switch (i % 4) {
+        case 0: // 첫 번째 선: 약간 파란색 톤
+          r = ((baseGrayValue * 0.9).round()).clamp(0, 255);
+          g = ((baseGrayValue * 0.95).round()).clamp(0, 255);
+          b = baseGrayValue.clamp(0, 255);
+          break;
+        case 1: // 두 번째 선: 약간 보라색 톤
+          r = ((baseGrayValue * 0.95).round()).clamp(0, 255);
+          g = ((baseGrayValue * 0.9).round()).clamp(0, 255);
+          b = baseGrayValue.clamp(0, 255);
+          break;
+        case 2: // 세 번째 선: 약간 녹색 톤
+          r = ((baseGrayValue * 0.95).round()).clamp(0, 255);
+          g = baseGrayValue.clamp(0, 255);
+          b = ((baseGrayValue * 0.9).round()).clamp(0, 255);
+          break;
+        default: // 네 번째 선: 순수 회색
+          r = baseGrayValue.clamp(0, 255);
+          g = baseGrayValue.clamp(0, 255);
+          b = baseGrayValue.clamp(0, 255);
+      }
+
+      final baseOpacity = 0.4 - (i * 0.03);
+
+      // 선을 여러 구간으로 나누어 페이드 효과 적용
+      final segmentWidth = size.width / 20; // 20개 구간으로 나눔
+
+      for (int segment = 0; segment < 20; segment++) {
+        final startX = segment * segmentWidth;
+        final endX = (segment + 1) * segmentWidth;
+
+        // 양 끝에서 페이드 인/아웃 효과
+        double fadeOpacity = 1.0;
+        if (segment < 3) {
+          // 왼쪽 끝: 페이드 인
+          fadeOpacity = segment / 3.0;
+        } else if (segment > 16) {
+          // 오른쪽 끝: 페이드 아웃
+          fadeOpacity = (20 - segment) / 3.0;
+        }
+
+        final path = Path();
+        bool isFirstPoint = true;
+
+        // 각 구간의 곡선 생성
+        for (double x = startX; x <= endX; x += 1) {
+          final y = yOffset +
+              amplitude *
+                  math.sin((x * frequency) + waveOffset) *
+                  (1.0 - (x / size.width) * 0.5);
+
+          if (isFirstPoint) {
+            path.moveTo(x, y);
+            isFirstPoint = false;
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+
+        // 각 구간마다 다른 투명도 적용
+        paint.color =
+            Color.fromRGBO(r, g, b, baseOpacity * fadeOpacity.clamp(0.0, 1.0));
+
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HomeWavePainter oldDelegate) {
+    return oldDelegate.t != t;
+  }
 }

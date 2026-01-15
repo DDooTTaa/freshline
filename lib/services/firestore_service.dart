@@ -516,31 +516,58 @@ class FirestoreService {
         .limit(100)
         .snapshots()
         .asyncMap((snapshot) async {
-      final list = await Future.wait(snapshot.docs.map((doc) async {
+      // 사용자 ID 목록 수집
+      final userIds = snapshot.docs
+          .map((doc) => doc.data()['userId'] as String? ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      // 배치로 사용자 닉네임 조회 (성능 최적화)
+      final Map<String, String> userNicknameMap = {};
+      if (userIds.isNotEmpty) {
+        try {
+          // 최대 10개씩 배치로 조회 (Firestore 제한)
+          for (int i = 0; i < userIds.length; i += 10) {
+            final batch = userIds.skip(i).take(10).toList();
+            final futures = batch.map((userId) async {
+              try {
+                final userDoc = await _firestore.collection('users').doc(userId).get();
+                if (userDoc.exists && userDoc.data()?['nickname'] != null) {
+                  return MapEntry(userId, userDoc.data()!['nickname'] as String);
+                }
+              } catch (e) {
+                print('닉네임 조회 오류: $e');
+              }
+              return null;
+            });
+            
+            final results = await Future.wait(futures);
+            for (final result in results) {
+              if (result != null) {
+                userNicknameMap[result.key] = result.value;
+              }
+            }
+          }
+        } catch (e) {
+          print('배치 닉네임 조회 오류: $e');
+        }
+      }
+
+      // 문서 데이터 변환
+      final list = snapshot.docs.map((doc) {
         final data = doc.data();
         final userId = data['userId'] as String? ?? '';
-
-        // 사용자 닉네임 조회
-        String userName = data['userName'] as String? ?? '익명';
-        if (userId.isNotEmpty) {
-          try {
-            final userDoc =
-                await _firestore.collection('users').doc(userId).get();
-            if (userDoc.exists && userDoc.data()?['nickname'] != null) {
-              userName = userDoc.data()!['nickname'] as String;
-            }
-          } catch (e) {
-            print('닉네임 조회 오류: $e');
-          }
-        }
+        final userName = userNicknameMap[userId] ?? 
+                        (data['userName'] as String? ?? '익명');
 
         return {
           'id': doc.id,
           ...data,
-          'userName': userName, // 닉네임으로 업데이트
+          'userName': userName,
           'createdAt': (data['createdAt'] as Timestamp).toDate(),
         };
-      }));
+      }).toList();
       
       return list;
     });

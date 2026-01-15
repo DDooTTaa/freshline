@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/creation.dart';
 import '../services/firestore_service.dart';
 import 'creation_detail_screen.dart';
+import 'creation_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -94,13 +95,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('내 작품 모아보기'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadCreations,
-            tooltip: '새로고침',
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -249,6 +243,22 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     },
                   ),
                 ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreationScreen(),
+            ),
+          );
+          // 글쓰기 화면에서 돌아올 때 목록 새로고침
+          _loadCreations();
+        },
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        child: const Icon(Icons.edit),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

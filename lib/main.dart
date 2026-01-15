@@ -30,7 +30,7 @@ class LanguageStretchingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '언어 스트레칭',
+      title: 'Langth:시를 쓰는 시간',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -38,7 +38,7 @@ class LanguageStretchingApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'NotoSansKR',
+        // fontFamily: 'Pretendard', // 폰트 파일 추가 후 주석 해제
       ),
       home: const AuthWrapper(),
     );

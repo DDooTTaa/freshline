@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 0),
                     const Text(
-                      '진부하지 않은 문장 만들기',
+                      '랭쓰: 시를 쓰는 시간',
                       style: TextStyle(
                         fontSize: 18,
                         color: Colors.black54,
@@ -289,7 +289,7 @@ class WavePainter extends CustomPainter {
       final frequency = 0.01 + (i * 0.002);
       // 중앙보다 50px 위에 배치 (화면 중앙 기준으로 위아래로 분산)
       final centerY = size.height * 0.5 - 30;
-      final spacing = 40.0;
+      final spacing = 30.0; // 간격을 40에서 30으로 줄임
       final yOffset = centerY - (spacing * 1.5) + (i * spacing);
 
       // 실 같은 얇은 선으로 그리기

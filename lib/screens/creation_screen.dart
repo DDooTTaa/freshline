@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../models/creation.dart';
 import '../services/word_service.dart';
 import '../services/firestore_service.dart';
@@ -465,12 +466,12 @@ class _CreationScreenState extends State<CreationScreen> {
       // 커뮤니티 공유 (체크박스가 체크되어 있을 때만)
       if (_shareToCommunity && _originalWords.isNotEmpty) {
         try {
-        final todayWord = _originalWords[0]; // 오늘의 단어
-        await _firestoreService.savePublicCreationWithWord(
-          creation,
-          todayWord,
-          DateTime.now(),
-        );
+          final todayWord = _originalWords[0]; // 오늘의 단어
+          await _firestoreService.savePublicCreationWithWord(
+            creation,
+            todayWord,
+            DateTime.now(),
+          );
         } catch (e) {
           // 공유 실패해도 개인 작품 저장은 성공했으므로 계속 진행
           print('커뮤니티 공유 실패: $e');
@@ -542,215 +543,217 @@ class _CreationScreenState extends State<CreationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('새 작품 만들기'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              DateFormat('yyyy년 MM월 dd일').format(DateTime.now()),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            if (_originalWords.isNotEmpty && _originalWords[0].isNotEmpty) ...[
+              Text(
+                ',',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _originalWords[0],
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 88, 79, 79),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // 상단: 글감 (오늘의 단어)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20.0),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '글감',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_originalWords.isNotEmpty)
-                    Text(
-                      _originalWords[0],
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
             // 중단: 텍스트 에어리어
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '문장 작성',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _sentenceController,
-                        maxLines: null,
-                        expands: true,
-                        textAlignVertical: TextAlignVertical.top,
-                        decoration: InputDecoration(
-                          hintText: '위 단어의 특징을 살려 문장을 작성해보세요...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
-                              width: 2,
-                            ),
-                          ),
-                          filled: true,
-                          fillColor: Theme.of(context).colorScheme.surface,
-                          contentPadding: const EdgeInsets.all(16),
-                        ),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          height: 1.5,
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _sentence = value;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
+                child: TextField(
+                  controller: _sentenceController,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  decoration: InputDecoration(
+                    hintText: '단어를 사용해 당신의 생각을 들려주세요',
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _sentence = value;
+                    });
+                  },
                 ),
               ),
             ),
 
-            // 중하단: 단어 바꾸기
+            // 하단: 단어 바꾸기, 공유 및 저장
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color:
-                        Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading || _originalWords.isEmpty
-                          ? null
-                          : () => _replaceWord(0),
-                      icon: const Icon(Icons.swap_horiz),
-                      label: const Text('단어 바꾸기'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 하단: 공유 및 저장
-            Container(
-              padding: const EdgeInsets.all(20.0),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color:
-                        Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                  ),
-                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
                   ),
                 ],
               ),
-              child: Column(
-                children: [
-                  // 커뮤니티 공유 체크박스
-                  Row(
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Checkbox(
-                        value: _shareToCommunity,
-                        onChanged: _isLoading
+                      // 단어 바꾸기 버튼
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading || _originalWords.isEmpty
+                              ? null
+                              : () => _replaceWord(0),
+                          icon: const Icon(Icons.swap_horiz,
+                              size: 20, color: Colors.black),
+                          label: const Text(
+                            '단어 바꾸기',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            side: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outline
+                                  .withOpacity(0.3),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // 커뮤니티 공유 체크박스
+                      InkWell(
+                        onTap: _isLoading
                             ? null
-                            : (value) {
+                            : () {
                                 setState(() {
-                                  _shareToCommunity = value ?? false;
+                                  _shareToCommunity = !_shareToCommunity;
                                 });
                               },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4.0,
+                            vertical: 8.0,
+                          ),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: _shareToCommunity,
+                                onChanged: _isLoading
+                                    ? null
+                                    : (value) {
+                                        setState(() {
+                                          _shareToCommunity = value ?? false;
+                                        });
+                                      },
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                fillColor:
+                                    WidgetStateProperty.resolveWith<Color>(
+                                  (Set<WidgetState> states) {
+                                    if (states.contains(WidgetState.selected)) {
+                                      return Colors.black;
+                                    }
+                                    return Colors.transparent;
+                                  },
+                                ),
+                                checkColor: Colors.white,
+                              ),
+                              Expanded(
+                                child: Text(
+                                  '커뮤니티에 공유하기',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      const Expanded(
-                        child: Text(
-                          '커뮤니티에 공유하기',
-                          style: TextStyle(fontSize: 15),
+                      const SizedBox(height: 12),
+                      // 저장 버튼
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _saveCreation,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.black),
+                                  ),
+                                )
+                              : const Icon(Icons.check,
+                                  size: 22, color: Colors.black),
+                          label: Text(
+                            _isLoading ? '저장 중...' : '저장하기',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                              color: Colors.black,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  // 저장 버튼
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _saveCreation,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Icon(Icons.save),
-                      label: const Text(
-                        '저장하기',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ],

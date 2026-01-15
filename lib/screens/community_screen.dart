@@ -4,7 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
 
 class CommunityScreen extends StatefulWidget {
-  const CommunityScreen({super.key});
+  final VoidCallback? onNavigateToHome;
+
+  const CommunityScreen({
+    super.key,
+    this.onNavigateToHome,
+  });
 
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
@@ -14,28 +19,14 @@ class _CommunityScreenState extends State<CommunityScreen>
     with WidgetsBindingObserver {
   final FirestoreService _firestoreService = FirestoreService();
   String _todayWord = '';
-  bool _isLoadingWord = true;
   bool _showFollowingOnly = false; // 팔로우한 사용자만 보기
-  bool _isRefreshing = false; // 재렌더링 중인지 확인
-  int _streamKey = 0; // StreamBuilder 재생성을 위한 key
+  final Map<String, bool> _expandedCards = {}; // 카드별 확장 상태
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadTodayWord();
-    // 초기 로딩 상태 설정
-    _isRefreshing = true;
-    // StreamBuilder를 재생성하여 강제로 다시 구독
-    _streamKey++;
-    // StreamBuilder가 데이터를 다시 받을 때까지 로딩 표시 (최소 1.5초)
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        setState(() {
-          _isRefreshing = false;
-        });
-      }
-    });
   }
 
   @override
@@ -47,29 +38,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // 앱이 다시 활성화될 때 데이터 새로고침
-    if (state == AppLifecycleState.resumed) {
-      _refreshData();
-    }
-  }
-
-  void _refreshData() {
-    // 재렌더링 시작
-    if (mounted) {
-      setState(() {
-        _isRefreshing = true;
-        // StreamBuilder를 재생성하여 강제로 다시 구독
-        _streamKey++;
-      });
-      // StreamBuilder가 데이터를 다시 받을 때까지 로딩 표시 (최소 1.5초)
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted) {
-          setState(() {
-            _isRefreshing = false;
-          });
-        }
-      });
-    }
+    // StreamBuilder가 자동으로 업데이트되므로 별도 처리 불필요
   }
 
   Future<void> _loadTodayWord() async {
@@ -79,22 +48,20 @@ class _CommunityScreenState extends State<CommunityScreen>
       if (mounted) {
         setState(() {
           _todayWord = word;
-          _isLoadingWord = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingWord = false;
-        });
-      }
+      // 오류 발생 시 기본값 유지
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -127,6 +94,12 @@ class _CommunityScreenState extends State<CommunityScreen>
           ],
         ),
         actions: [
+          // 글감으로 이동 버튼
+          IconButton(
+            icon: const Icon(Icons.edit_note),
+            onPressed: widget.onNavigateToHome,
+            tooltip: '글감으로 이동',
+          ),
           IconButton(
             icon:
                 Icon(_showFollowingOnly ? Icons.people : Icons.people_outline),
@@ -140,19 +113,14 @@ class _CommunityScreenState extends State<CommunityScreen>
         ],
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        key: ValueKey(_streamKey), // StreamBuilder 재생성을 위한 key
         stream: _showFollowingOnly
             ? _firestoreService.getFollowingCreations()
             : _firestoreService.getPublicCreations(),
         builder: (context, snapshot) {
-          // 재렌더링 중이거나 초기 로딩 중일 때 로딩 표시
-          // _isRefreshing이 true이면 데이터가 있어도 로딩 표시
-          if (_isRefreshing) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          // StreamBuilder가 아직 데이터를 받지 않았을 때
-          if (snapshot.connectionState == ConnectionState.waiting ||
-              (!snapshot.hasData && !snapshot.hasError)) {
+          // StreamBuilder가 아직 데이터를 받지 않았을 때만 로딩 표시
+          // 데이터가 이미 있으면 waiting 상태여도 로딩을 표시하지 않음
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -217,6 +185,13 @@ class _CommunityScreenState extends State<CommunityScreen>
                       Color.fromRGBO(176, 224, 230, 1.0), // 기본 파란색
                     ];
 
+              // 밝은 색상(빛 등)을 위한 최소 opacity 계산
+              final baseColor = gradientColors[0];
+              final brightness = baseColor.computeLuminance();
+              // 밝기가 0.7 이상이면 (빛, 별 등 밝은 색상) 최소 opacity를 높임
+              final minOpacity = brightness > 0.7 ? 0.25 : 0.15;
+              final secondMinOpacity = brightness > 0.7 ? 0.15 : 0.08;
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 elevation: 2,
@@ -230,27 +205,16 @@ class _CommunityScreenState extends State<CommunityScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        gradientColors[0].withOpacity(0.3), // 상단 색상
+                        // 메인 페이지와 동일한 구조이지만 더 연하게
+                        // 밝은 색상(빛 등)은 최소 opacity를 높여서 보이도록 함
+                        gradientColors[0].withOpacity(minOpacity), // 상단 색상
                         gradientColors.length > 1
-                            ? Color.lerp(
-                                gradientColors[0].withOpacity(0.3),
-                                gradientColors[1].withOpacity(0.2),
-                                0.5,
-                              )! // 첫 번째와 두 번째 색상의 중간
-                            : gradientColors[0].withOpacity(0.25),
-                        gradientColors.length > 1
-                            ? gradientColors[1].withOpacity(0.15) // 두 번째 색상
-                            : gradientColors[0].withOpacity(0.2),
-                        Color.lerp(
-                          gradientColors.length > 1
-                              ? gradientColors[1].withOpacity(0.15)
-                              : gradientColors[0].withOpacity(0.2),
-                          Colors.white,
-                          0.3,
-                        )!, // 색상에서 흰색으로의 중간
+                            ? gradientColors[1]
+                                .withOpacity(secondMinOpacity) // 하단 색상
+                            : gradientColors[0]
+                                .withOpacity(secondMinOpacity * 1.25),
                         Colors.white, // 맨 아래 흰색
                       ],
-                      stops: const [0.0, 0.2, 0.45, 0.7, 0.85], // 더 부드러운 전환
                     ),
                   ),
                   child: Padding(
@@ -263,16 +227,100 @@ class _CommunityScreenState extends State<CommunityScreen>
                             // 사용자 정보 및 날짜
                             Stack(
                               children: [
-                                // 사용자 이름
+                                // 사용자 이름 및 단어 정보
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        creation['userName'] as String? ?? '익명',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            creation['userName'] as String? ??
+                                                '익명',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          if (creation['originalWords'] !=
+                                              null) ...[
+                                            const SizedBox(width: 8),
+                                            ...List.generate(
+                                              (creation['originalWords']
+                                                      as List)
+                                                  .length,
+                                              (index) {
+                                                final originalWords =
+                                                    creation['originalWords']
+                                                        as List;
+                                                final replacedWords =
+                                                    creation['replacedWords']
+                                                            as List? ??
+                                                        originalWords;
+                                                final originalWord =
+                                                    originalWords[index]
+                                                        as String;
+                                                final replacedWord =
+                                                    index < replacedWords.length
+                                                        ? replacedWords[index]
+                                                            as String
+                                                        : originalWord;
+                                                final isReplaced =
+                                                    originalWord !=
+                                                        replacedWord;
+
+                                                return Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Chip(
+                                                      label: Text(
+                                                        originalWord,
+                                                        style: const TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      backgroundColor:
+                                                          Colors.white,
+                                                      padding: EdgeInsets.zero,
+                                                    ),
+                                                    if (isReplaced) ...[
+                                                      const Padding(
+                                                        padding: EdgeInsets
+                                                            .symmetric(
+                                                                horizontal: 2),
+                                                        child: Icon(
+                                                          Icons.arrow_forward,
+                                                          size: 12,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Chip(
+                                                        label: Text(
+                                                          replacedWord,
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                Colors.black87,
+                                                          ),
+                                                        ),
+                                                        backgroundColor:
+                                                            Colors.white,
+                                                        padding:
+                                                            EdgeInsets.zero,
+                                                      ),
+                                                    ],
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -297,15 +345,71 @@ class _CommunityScreenState extends State<CommunityScreen>
                             ),
                             const SizedBox(height: 12),
                             // 작품 내용
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 40.0),
-                              child: Text(
-                                creation['sentence'] as String? ?? '',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  height: 1.5,
-                                ),
-                              ),
+                            Builder(
+                              builder: (context) {
+                                final sentence =
+                                    creation['sentence'] as String? ?? '';
+                                final cardId = creation['id'] as String? ?? '';
+                                final isExpanded =
+                                    _expandedCards[cardId] ?? false;
+                                final shouldShowMore =
+                                    sentence.length > 100; // 100자 이상이면 더보기 표시
+                                final previewText = sentence.length > 100
+                                    ? '${sentence.substring(0, 100)}...'
+                                    : sentence;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    AnimatedCrossFade(
+                                      firstChild: Text(
+                                        previewText,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                      secondChild: Text(
+                                        sentence,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                      crossFadeState:
+                                          isExpanded || !shouldShowMore
+                                              ? CrossFadeState.showSecond
+                                              : CrossFadeState.showFirst,
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      sizeCurve: Curves.easeInOut,
+                                    ),
+                                    if (shouldShowMore)
+                                      GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _expandedCards[cardId] =
+                                                !isExpanded;
+                                          });
+                                        },
+                                        child: Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 4.0),
+                                          child: Text(
+                                            isExpanded ? '접기' : '더보기',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
                             ),
                             // 좋아요 버튼 및 팔로우 버튼
                             Row(
@@ -379,69 +483,6 @@ class _CommunityScreenState extends State<CommunityScreen>
                               ],
                             ),
                           ],
-                        ),
-                        // 단어 정보 (우측 하단)
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            alignment: WrapAlignment.end,
-                            children: [
-                              if (creation['originalWords'] != null)
-                                ...List.generate(
-                                  (creation['originalWords'] as List).length,
-                                  (index) {
-                                    final originalWords =
-                                        creation['originalWords'] as List;
-                                    final replacedWords =
-                                        creation['replacedWords'] as List? ??
-                                            originalWords;
-                                    final originalWord =
-                                        originalWords[index] as String;
-                                    final replacedWord =
-                                        index < replacedWords.length
-                                            ? replacedWords[index] as String
-                                            : originalWord;
-                                    final isReplaced =
-                                        originalWord != replacedWord;
-
-                                    return Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Chip(
-                                          label: Text(
-                                            originalWord,
-                                            style:
-                                                const TextStyle(fontSize: 10),
-                                          ),
-                                          backgroundColor: Colors.white,
-                                          padding: EdgeInsets.zero,
-                                        ),
-                                        if (isReplaced) ...[
-                                          const Padding(
-                                            padding: EdgeInsets.symmetric(
-                                                horizontal: 2),
-                                            child: Icon(Icons.arrow_forward,
-                                                size: 12),
-                                          ),
-                                          Chip(
-                                            label: Text(
-                                              replacedWord,
-                                              style:
-                                                  const TextStyle(fontSize: 10),
-                                            ),
-                                            backgroundColor: Colors.white,
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                        ],
-                                      ],
-                                    );
-                                  },
-                                ),
-                            ],
-                          ),
                         ),
                       ],
                     ),

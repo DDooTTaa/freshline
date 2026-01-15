@@ -31,4 +31,16 @@ flutter:
   # 이미지 및 기타 assets 설정
   assets:
     - assets/images/
+  
+  # 폰트 설정 (폰트 파일 추가 후 주석 해제)
+  # fonts:
+  #   - family: Pretendard
+  #     fonts:
+  #       - asset: assets/fonts/Pretendard-Regular.ttf
+  #       - asset: assets/fonts/Pretendard-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Pretendard-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Pretendard-Bold.ttf
+  #         weight: 700
 
