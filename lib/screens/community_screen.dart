@@ -190,7 +190,6 @@ class _CommunityScreenState extends State<CommunityScreen>
               final brightness = baseColor.computeLuminance();
               // 밝기가 0.7 이상이면 (빛, 별 등 밝은 색상) 최소 opacity를 높임
               final minOpacity = brightness > 0.7 ? 0.25 : 0.15;
-              final secondMinOpacity = brightness > 0.7 ? 0.15 : 0.08;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -205,14 +204,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        // 메인 페이지와 동일한 구조이지만 더 연하게
-                        // 밝은 색상(빛 등)은 최소 opacity를 높여서 보이도록 함
+                        // 색 하나와 흰색만 사용
                         gradientColors[0].withOpacity(minOpacity), // 상단 색상
-                        gradientColors.length > 1
-                            ? gradientColors[1]
-                                .withOpacity(secondMinOpacity) // 하단 색상
-                            : gradientColors[0]
-                                .withOpacity(secondMinOpacity * 1.25),
                         Colors.white, // 맨 아래 흰색
                       ],
                     ),
