@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _loadTodayWordExample() async {
     try {
       final example = await _firestoreService.getTodayWordExample();
-      if (mounted) {
+      if (mounted && _todayExample != example) {
         setState(() {
           _todayExample = example;
         });
@@ -71,14 +71,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       final colors = await _firestoreService.getTodayWordColors();
       if (mounted && colors.length >= 2) {
-        setState(() {
-          // 상단 색상 -> 하단 색상(연하게) -> 흰색 순서로 그라데이션 생성
-          _gradientColors = [
-            colors[0], // 상단 색상
-            colors[1].withOpacity(0.4), // 하단 색상을 더 연하게
-            Colors.white, // 흰색
-          ];
-        });
+        final newColors = [
+          colors[0], // 상단 색상
+          colors[1].withOpacity(0.4), // 하단 색상을 더 연하게
+          Colors.white, // 흰색
+        ];
+        // 색상이 실제로 변경되었을 때만 setState 호출
+        if (_gradientColors[0] != newColors[0] ||
+            _gradientColors[1] != newColors[1]) {
+          setState(() {
+            _gradientColors = newColors;
+          });
+        }
       }
     } catch (e) {
       print('단어 색상 로드 오류: $e');
@@ -106,10 +110,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _loadUserInfo() async {
     final userInfo = await _authService.getUserInfo();
     final nickname = await _firestoreService.getUserNickname();
-    setState(() {
-      _userInfo = userInfo;
-      _userNickname = nickname;
-    });
+    // 사용자 정보가 실제로 변경되었을 때만 setState 호출
+    if (_userInfo['name'] != userInfo['name'] ||
+        _userInfo['email'] != userInfo['email'] ||
+        _userNickname != nickname) {
+      setState(() {
+        _userInfo = userInfo;
+        _userNickname = nickname;
+      });
+    }
   }
 
   Future<void> _showWordSelectionDialog() async {
@@ -302,26 +311,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // daily_words에서 오늘의 단어 가져오기
       final word = await _firestoreService.getTodayWordFromDailyWords();
       if (mounted) {
-        setState(() {
-          _currentWord = word;
-          _isLoadingWord = false;
+        final hasChanged = _currentWord != word || _isLoadingWord;
+        if (hasChanged) {
+          setState(() {
+            _currentWord = word;
+            _isLoadingWord = false;
+            _isLoadingWordInProgress = false;
+            _cachedDate = today;
+          });
+        } else {
           _isLoadingWordInProgress = false;
-          _cachedDate = today;
-        });
-        // 단어 색상과 예시도 함께 로드
+        }
+        // 단어 색상과 예시도 함께 로드 (비동기로, setState 없이)
         _loadTodayWordColors();
         _loadTodayWordExample();
       }
     } catch (e) {
       print('오늘의 단어 로드 오류: $e');
       if (mounted) {
-        setState(() {
-          _currentWord = WordService.getRandomWords(count: 1).first;
-          _isLoadingWord = false;
+        final fallbackWord = WordService.getRandomWords(count: 1).first;
+        final hasChanged = _currentWord != fallbackWord || _isLoadingWord;
+        if (hasChanged) {
+          setState(() {
+            _currentWord = fallbackWord;
+            _isLoadingWord = false;
+            _isLoadingWordInProgress = false;
+            _cachedDate = today;
+          });
+        } else {
           _isLoadingWordInProgress = false;
-          _cachedDate = today;
-        });
-        // 단어 색상과 예시도 함께 로드
+        }
+        // 단어 색상과 예시도 함께 로드 (비동기로, setState 없이)
         _loadTodayWordColors();
         _loadTodayWordExample();
       }
@@ -414,6 +434,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // 텍스트 색상을 한 번만 계산하여 재사용
+    final textColor = _getTextColorForBackground(_gradientColors[0]);
+    final textColorWithOpacity = textColor.withOpacity(0.7);
+    final textColorWithHalfOpacity = textColor.withOpacity(0.5);
+
     return Scaffold(
       extendBody: true, // FloatingActionButton이 body 영역을 확장하도록
       body: PageView(
@@ -425,30 +450,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Stack(
             children: [
               // 전체 화면 배경
-              Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: _gradientColors,
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: _gradientColors,
+                    ),
                   ),
                 ),
               ),
               // 물결 애니메이션
-              AnimatedBuilder(
-                animation: _waveAnimationController,
-                builder: (context, child) {
-                  final t = (_waveAnimationController
-                              .lastElapsedDuration?.inMilliseconds ??
-                          0) /
-                      1000.0;
-                  return CustomPaint(
-                    size: Size.infinite,
-                    painter: _HomeWavePainter(t),
-                  );
-                },
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _waveAnimationController,
+                    builder: (context, child) {
+                      // 모듈로 연산을 여기서 처리하여 CustomPainter의 계산 부담 감소
+                      final t =
+                          (_waveAnimationController.value * 8) % (2 * math.pi);
+                      return CustomPaint(
+                        size: Size.infinite,
+                        painter: _HomeWavePainter(t),
+                      );
+                    },
+                  ),
+                ),
               ),
               // 상단 네비게이션 버튼들
               SafeArea(
@@ -463,13 +491,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         onPressed: _showWordSelectionDialog,
                         icon: Icon(
                           Icons.edit_note,
-                          color: _getTextColorForBackground(_gradientColors[0]),
+                          color: textColor,
                         ),
                         label: Text(
                           '글감 선택',
                           style: TextStyle(
-                            color:
-                                _getTextColorForBackground(_gradientColors[0]),
+                            color: textColor,
                             fontSize: 14,
                           ),
                         ),
@@ -488,8 +515,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               );
                             },
                             tooltip: '내 글',
-                            color:
-                                _getTextColorForBackground(_gradientColors[0]),
+                            color: textColor,
                           ),
                           PopupMenuButton<String>(
                             icon: CircleAvatar(
@@ -610,8 +636,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         // 글감 (오늘의 단어)
                         if (_isLoadingWord)
                           CircularProgressIndicator(
-                            color:
-                                _getTextColorForBackground(_gradientColors[0]),
+                            color: textColor,
                           )
                         else if (_currentWord.isNotEmpty)
                           Text(
@@ -619,8 +644,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             style: TextStyle(
                               fontSize: 56,
                               fontWeight: FontWeight.bold,
-                              color: _getTextColorForBackground(
-                                  _gradientColors[0]),
+                              color: textColor,
                             ),
                           ),
                         const SizedBox(height: 32),
@@ -635,9 +659,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               style: TextStyle(
                                 fontSize: 20,
                                 height: 1.6,
-                                color: _getTextColorForBackground(
-                                        _gradientColors[0])
-                                    .withOpacity(0.7), // 투명도 적용
+                                color: textColorWithOpacity,
                               ),
                             ),
                           ),
@@ -661,28 +683,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           math.pi) *
                                       8, // 위아래로 8픽셀 움직임
                                 ),
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.keyboard_arrow_down,
-                                      size: 40,
-                                      color: _getTextColorForBackground(
-                                              _gradientColors[0])
-                                          .withOpacity(0.5),
-                                    ),
-                                    Text(
-                                      '아래로 스크롤',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: _getTextColorForBackground(
-                                                _gradientColors[0])
-                                            .withOpacity(0.5),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                child: child!,
                               );
                             },
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.keyboard_arrow_down,
+                                  size: 40,
+                                  color: textColorWithHalfOpacity,
+                                ),
+                                Text(
+                                  '아래로 스크롤',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: textColorWithHalfOpacity,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -859,6 +878,7 @@ class _HomeWavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_HomeWavePainter oldDelegate) {
+    // 애니메이션은 매 프레임마다 그려야 부드럽게 동작
     return oldDelegate.t != t;
   }
 }
