@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _showWordSelectionDialog() async {
     final words = WordService.getAllWords();
-    
+
     final selectedWord = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -134,7 +134,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Navigator.pop(context, word);
                 },
                 trailing: isSelected
-                    ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
+                    ? Icon(Icons.check,
+                        color: Theme.of(context).colorScheme.primary)
                     : null,
               );
             },
@@ -439,8 +440,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               AnimatedBuilder(
                 animation: _waveAnimationController,
                 builder: (context, child) {
-                  final t = (_waveAnimationController.lastElapsedDuration
-                              ?.inMilliseconds ??
+                  final t = (_waveAnimationController
+                              .lastElapsedDuration?.inMilliseconds ??
                           0) /
                       1000.0;
                   return CustomPaint(
@@ -467,7 +468,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         label: Text(
                           '글감 선택',
                           style: TextStyle(
-                            color: _getTextColorForBackground(_gradientColors[0]),
+                            color:
+                                _getTextColorForBackground(_gradientColors[0]),
                             fontSize: 14,
                           ),
                         ),
@@ -475,112 +477,113 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       // 오른쪽: 갤러리 및 프로필 버튼
                       Row(
                         children: [
-          IconButton(
-            icon: const Icon(Icons.collections_bookmark),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const GalleryScreen(),
-                ),
-              );
-            },
-            tooltip: '내 작품 모아보기',
-                        color: _getTextColorForBackground(_gradientColors[0]),
-          ),
-          PopupMenuButton<String>(
-            icon: CircleAvatar(
-              radius: 16,
-                          backgroundColor:
-                              Theme.of(context).colorScheme.surfaceVariant,
-                          child: const Text(
-                            '👤',
-                            style: TextStyle(fontSize: 20),
+                          IconButton(
+                            icon: const Icon(Icons.collections_bookmark),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const GalleryScreen(),
+                                ),
+                              );
+                            },
+                            tooltip: '내 글',
+                            color:
+                                _getTextColorForBackground(_gradientColors[0]),
                           ),
-            ),
-                        color: Theme.of(context).colorScheme.surface,
-            onSelected: (value) async {
-              if (value == 'logout') {
-                _signOut();
-              } else if (value == 'initDailyWords') {
-                await _initializeDailyWords();
-                          } else if (value == 'setNickname') {
-                            await _showNicknameDialog();
-              }
-            },
-            itemBuilder: (context) => [
-                          if (_userNickname != null &&
-                              _userNickname!.isNotEmpty)
-                            PopupMenuItem(
-                              value: 'setNickname',
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      _userNickname!,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.edit, size: 16),
-                                ],
+                          PopupMenuButton<String>(
+                            icon: CircleAvatar(
+                              radius: 16,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.surfaceVariant,
+                              child: const Text(
+                                '👤',
+                                style: TextStyle(fontSize: 20),
                               ),
-                            )
-                          else if (_userInfo['name']?.isNotEmpty == true)
-                PopupMenuItem(
-                              value: 'setNickname',
-                              child: Row(
-                                children: [
-                                  Expanded(
-                  child: Text(
-                    _userInfo['name']!,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
+                            ),
+                            color: Theme.of(context).colorScheme.surface,
+                            onSelected: (value) async {
+                              if (value == 'logout') {
+                                _signOut();
+                              } else if (value == 'initDailyWords') {
+                                await _initializeDailyWords();
+                              } else if (value == 'setNickname') {
+                                await _showNicknameDialog();
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              if (_userNickname != null &&
+                                  _userNickname!.isNotEmpty)
+                                PopupMenuItem(
+                                  value: 'setNickname',
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          _userNickname!,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.edit, size: 16),
+                                    ],
+                                  ),
+                                )
+                              else if (_userInfo['name']?.isNotEmpty == true)
+                                PopupMenuItem(
+                                  value: 'setNickname',
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          _userInfo['name']!,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.edit, size: 16),
+                                    ],
+                                  ),
+                                ),
+                              if (_userInfo['email']?.isNotEmpty == true)
+                                PopupMenuItem(
+                                  enabled: false,
+                                  child: Text(
+                                    _userInfo['email']!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.edit, size: 16),
-                                ],
-                  ),
-                ),
-              if (_userInfo['email']?.isNotEmpty == true)
-                PopupMenuItem(
-                  enabled: false,
-                  child: Text(
-                    _userInfo['email']!,
-                    style: TextStyle(
-                      fontSize: 12,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'initDailyWords',
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 20),
-                    SizedBox(width: 8),
-                    Text('날짜별 단어 초기화'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 20),
-                    SizedBox(width: 8),
-                    Text('로그아웃'),
-                  ],
-                ),
-              ),
-            ],
-          ),
+                                ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'initDailyWords',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.calendar_today, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('날짜별 단어 초기화'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'logout',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.logout, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('로그아웃'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ],
@@ -593,17 +596,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: SizedBox(
                   width: double.infinity,
                   height: double.infinity,
-          child: Padding(
+                  child: Padding(
                     padding: const EdgeInsets.only(
                       top: 24.0,
                       left: 24.0,
                       right: 24.0,
                       bottom: 100.0, // 플로팅 버튼 공간 확보
                     ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Spacer(),
                         // 글감 (오늘의 단어)
                         if (_isLoadingWord)
                           CircularProgressIndicator(
@@ -613,13 +616,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         else if (_currentWord.isNotEmpty)
                           Text(
                             _currentWord,
-                  style: TextStyle(
+                            style: TextStyle(
                               fontSize: 56,
-                    fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                               color: _getTextColorForBackground(
                                   _gradientColors[0]),
-                  ),
-                ),
+                            ),
+                          ),
                         const SizedBox(height: 32),
                         // 예시 문장
                         if (_todayExample != null && _todayExample!.isNotEmpty)
@@ -657,9 +660,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           2 *
                                           math.pi) *
                                       8, // 위아래로 8픽셀 움직임
-                    ),
-                    child: Column(
-                      children: [
+                                ),
+                                child: Column(
+                                  children: [
                                     Icon(
                                       Icons.keyboard_arrow_down,
                                       size: 40,
@@ -669,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     ),
                                     Text(
                                       '아래로 스크롤',
-                          style: TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         color: _getTextColorForBackground(
                                                 _gradientColors[0])
@@ -706,28 +709,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CreationScreen(
-                            initialWord: _currentWord,
-                          ),
-                        ),
-                      );
-                      // 커뮤니티 화면으로 이동 (StreamBuilder가 자동으로 새 데이터를 가져옴)
-                      if (mounted && _pageController.hasClients) {
-                        _pageController.animateToPage(
-                          1,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    },
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CreationScreen(
+                initialWord: _currentWord,
+              ),
+            ),
+          );
+          // 커뮤니티 화면으로 이동 (StreamBuilder가 자동으로 새 데이터를 가져옴)
+          if (mounted && _pageController.hasClients) {
+            _pageController.animateToPage(
+              1,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         child: const Icon(Icons.edit),
-                    ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -751,7 +754,7 @@ class _SensitivePageScrollPhysics extends PageScrollPhysics {
         mass: 0.5, // 더 가벼운 질량으로 빠른 반응
         stiffness: 200.0,
         damping: 0.8,
-    );
+      );
 }
 
 // 홈 화면용 물결 효과를 그리는 CustomPainter
