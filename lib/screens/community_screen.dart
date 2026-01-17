@@ -146,7 +146,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                   Text(
                     _showFollowingOnly
                         ? '팔로우한 사용자의 작품이 없습니다'
-                        : '아직 공유된 작품이 없습니다',
+                        : '공유된 작품이 없습니다',
                     style: TextStyle(
                       fontSize: 16,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
