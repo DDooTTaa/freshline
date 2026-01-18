@@ -145,7 +145,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                   const SizedBox(height: 16),
                   Text(
                     _showFollowingOnly
-                        ? '팔로우한 사용자의 작품이 없습니다'
+                        ? '팔로우한 작품이 없습니다'
                         : '공유된 작품이 없습니다',
                     style: TextStyle(
                       fontSize: 16,
