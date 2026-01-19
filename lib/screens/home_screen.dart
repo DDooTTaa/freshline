@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import '../services/word_service.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -463,19 +464,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               // 물결 애니메이션
               Positioned.fill(
-                child: RepaintBoundary(
-                  child: AnimatedBuilder(
-                    animation: _waveAnimationController,
-                    builder: (context, child) {
-                      // 모듈로 연산을 여기서 처리하여 CustomPainter의 계산 부담 감소
-                      final t =
-                          (_waveAnimationController.value * 8) % (2 * math.pi);
-                      return CustomPaint(
-                        size: Size.infinite,
-                        painter: _HomeWavePainter(t),
-                      );
-                    },
-                  ),
+                child: AnimatedBuilder(
+                  animation: _waveAnimationController,
+                  builder: (context, child) {
+                    // 연속적인 값 사용 (모듈로 연산은 각 물결의 waveOffset에서 처리)
+                    final t = _waveAnimationController.value * 8;
+                    return CustomPaint(
+                      size: Size.infinite,
+                      painter: _HomeWavePainter(t),
+                    );
+                  },
                 ),
               ),
               // 상단 네비게이션 버튼들
@@ -518,14 +516,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             color: textColor,
                           ),
                           PopupMenuButton<String>(
-                            icon: CircleAvatar(
-                              radius: 16,
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.surfaceVariant,
-                              child: const Text(
-                                '👤',
-                                style: TextStyle(fontSize: 20),
-                              ),
+                            icon: Icon(
+                              Icons.menu,
+                              color: textColor,
                             ),
                             color: Theme.of(context).colorScheme.surface,
                             onSelected: (value) async {
@@ -784,23 +777,22 @@ class _HomeWavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 상수 값들을 미리 계산
+    final twoPi = 2 * math.pi;
+
     // 4개의 실 같은 선 그리기
     for (int i = 0; i < 4; i++) {
       // 각 선마다 다른 속도와 방향
       final speed = 0.05 + (i * 0.05);
-      final waveOffset = t * speed * 2 * math.pi + (i * math.pi / 6);
+      // 모듈로 연산을 CustomPainter 내부에서 처리하여 부드러운 전환 보장
+      final baseOffset = t * speed * twoPi + (i * math.pi / 6);
+      final waveOffset = baseOffset % twoPi;
       final amplitude = 15.0 + (i * 5.0);
       final frequency = 0.01 + (i * 0.002);
       // 중앙보다 50px 위에 배치 (화면 중앙 기준으로 위아래로 분산)
       final centerY = size.height * 0.5 - 30;
       final spacing = 30.0; // 간격을 30으로 설정
       final yOffset = centerY - (spacing * 1.5) + (i * spacing);
-
-      // 실 같은 얇은 선으로 그리기
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..strokeCap = StrokeCap.round;
 
       // 각 선마다 다른 색상 톤 적용
       final gradientProgress = (yOffset / size.height).clamp(0.0, 1.0);
@@ -832,47 +824,51 @@ class _HomeWavePainter extends CustomPainter {
 
       final baseOpacity = 0.4 - (i * 0.03);
 
-      // 선을 여러 구간으로 나누어 페이드 효과 적용
-      final segmentWidth = size.width / 20; // 20개 구간으로 나눔
+      // 전체 Path를 한 번에 생성하여 성능 최적화
+      final path = Path();
+      bool isFirstPoint = true;
 
-      for (int segment = 0; segment < 20; segment++) {
-        final startX = segment * segmentWidth;
-        final endX = (segment + 1) * segmentWidth;
+      // 샘플링 간격을 6픽셀로 늘려 성능 향상
+      final sampleStep = 6.0;
 
-        // 양 끝에서 페이드 인/아웃 효과
-        double fadeOpacity = 1.0;
-        if (segment < 3) {
-          // 왼쪽 끝: 페이드 인
-          fadeOpacity = segment / 3.0;
-        } else if (segment > 16) {
-          // 오른쪽 끝: 페이드 아웃
-          fadeOpacity = (20 - segment) / 3.0;
+      // 전체 선을 한 번에 그리기
+      for (double x = 0; x <= size.width; x += sampleStep) {
+        final y = yOffset +
+            amplitude *
+                math.sin((x * frequency) + waveOffset) *
+                (1.0 - (x / size.width) * 0.5);
+
+        if (isFirstPoint) {
+          path.moveTo(x, y);
+          isFirstPoint = false;
+        } else {
+          path.lineTo(x, y);
         }
-
-        final path = Path();
-        bool isFirstPoint = true;
-
-        // 각 구간의 곡선 생성
-        for (double x = startX; x <= endX; x += 1) {
-          final y = yOffset +
-              amplitude *
-                  math.sin((x * frequency) + waveOffset) *
-                  (1.0 - (x / size.width) * 0.5);
-
-          if (isFirstPoint) {
-            path.moveTo(x, y);
-            isFirstPoint = false;
-          } else {
-            path.lineTo(x, y);
-          }
-        }
-
-        // 각 구간마다 다른 투명도 적용
-        paint.color =
-            Color.fromRGBO(r, g, b, baseOpacity * fadeOpacity.clamp(0.0, 1.0));
-
-        canvas.drawPath(path, paint);
       }
+
+      // 마지막 점 추가
+      final lastY = yOffset +
+          amplitude * math.sin((size.width * frequency) + waveOffset) * 0.5;
+      path.lineTo(size.width, lastY);
+
+      // 페이드 효과를 그라데이션으로 적용
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..strokeCap = StrokeCap.round
+        ..shader = ui.Gradient.linear(
+          Offset(0, yOffset),
+          Offset(size.width, yOffset),
+          [
+            Color.fromRGBO(r, g, b, 0.0), // 왼쪽 끝 투명
+            Color.fromRGBO(r, g, b, baseOpacity), // 중앙 불투명
+            Color.fromRGBO(r, g, b, baseOpacity), // 중앙 불투명
+            Color.fromRGBO(r, g, b, 0.0), // 오른쪽 끝 투명
+          ],
+          [0.0, 0.15, 0.85, 1.0],
+        );
+
+      canvas.drawPath(path, paint);
     }
   }
 
