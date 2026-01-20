@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import '../services/word_service.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/tutorial_overlay.dart';
 import 'creation_screen.dart';
 import 'gallery_screen.dart';
 import 'login_screen.dart';
@@ -36,6 +37,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Color.fromRGBO(176, 224, 230, 0.5), // 기본 파란색 (연하게)
     Colors.white,
   ];
+  bool _showTutorial = false;
+  final GlobalKey _fabKey = GlobalKey();
+  final GlobalKey _wordKey = GlobalKey();
 
   @override
   void initState() {
@@ -53,6 +57,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadUserInfo();
     _loadTodayWordColors();
     _loadTodayWordExample();
+    _checkTutorialStatus();
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    try {
+      final isCompleted = await _firestoreService.isTutorialCompleted();
+      if (!isCompleted && mounted) {
+        // 약간의 딜레이 후 튜토리얼 표시
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          setState(() {
+            _showTutorial = true;
+          });
+        }
+      }
+    } catch (e) {
+      print('튜토리얼 상태 확인 오류: $e');
+    }
   }
 
   Future<void> _loadTodayWordExample() async {
@@ -632,12 +654,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             color: textColor,
                           )
                         else if (_currentWord.isNotEmpty)
-                          Text(
-                            _currentWord,
-                            style: TextStyle(
-                              fontSize: 56,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
+                          Container(
+                            key: _wordKey,
+                            child: Text(
+                              _currentWord,
+                              style: TextStyle(
+                                fontSize: 56,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
                             ),
                           ),
                         const SizedBox(height: 32),
@@ -703,6 +728,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
+              // 튜토리얼 오버레이
+              if (_showTutorial && _currentWord.isNotEmpty && !_isLoadingWord)
+                TutorialOverlay(
+                  message:
+                      "'$_currentWord' 라는 글감 단어를 확인했나요?\n이제 오른쪽 아래 글쓰기 버튼을 눌러\n이 글감을 이용한 문장을 작성해보세요.",
+                  targetKey: _fabKey,
+                  alignment: Alignment.bottomRight,
+                  padding: const EdgeInsets.only(bottom: 100, right: 16),
+                  onNext: () async {
+                    await _firestoreService.markTutorialCompleted();
+                    setState(() {
+                      _showTutorial = false;
+                    });
+                    // CreationScreen으로 이동
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreationScreen(
+                          initialWord: _currentWord,
+                        ),
+                      ),
+                    );
+                  },
+                  onSkip: () async {
+                    await _firestoreService.markTutorialCompleted();
+                    setState(() {
+                      _showTutorial = false;
+                    });
+                  },
+                  nextText: '글쓰러 가기',
+                ),
             ],
           ),
           // 두 번째 페이지: 커뮤니티 화면
@@ -721,7 +777,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        key: _fabKey,
         onPressed: () async {
+          if (_showTutorial) {
+            // 튜토리얼 완료 표시
+            await _firestoreService.markTutorialCompleted();
+            setState(() {
+              _showTutorial = false;
+            });
+          }
           await Navigator.push(
             context,
             MaterialPageRoute(

@@ -98,7 +98,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('내 작품 모아보기'),
+        title: const Text('내 글'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

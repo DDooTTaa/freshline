@@ -1411,4 +1411,40 @@ class FirestoreService {
       return _auth.currentUser?.displayName ?? '익명';
     }
   }
+
+  // 튜토리얼 완료 여부 확인
+  Future<bool> isTutorialCompleted() async {
+    if (_userId.isEmpty) {
+      return false;
+    }
+
+    try {
+      final profile = await getUserProfile();
+      if (profile != null && profile['tutorialCompleted'] == true) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('튜토리얼 완료 여부 확인 오류: $e');
+      return false;
+    }
+  }
+
+  // 튜토리얼 완료로 표시
+  Future<void> markTutorialCompleted() async {
+    if (_userId.isEmpty) {
+      throw Exception('사용자가 로그인되지 않았습니다.');
+    }
+
+    try {
+      final userRef = _firestore.collection('users').doc(_userId);
+      await userRef.set({
+        'tutorialCompleted': true,
+        'tutorialCompletedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('튜토리얼 완료 표시 오류: $e');
+      rethrow;
+    }
+  }
 }

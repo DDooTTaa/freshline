@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/creation.dart';
 import '../services/word_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/tutorial_overlay.dart';
 import 'gallery_screen.dart';
 
 class CreationScreen extends StatefulWidget {
@@ -28,6 +29,11 @@ class _CreationScreenState extends State<CreationScreen> {
   bool _shareToCommunity = false; // 커뮤니티 공유 여부
   // 각 위치별로 어떤 단어로 바뀌었는지 추적 (위치 -> 새 단어)
   final Map<int, String> _positionReplacements = {};
+  // 튜토리얼 상태
+  int _tutorialStep = 0; // 0: 없음, 1: 문장 작성, 2: 단어 변환, 3: 커뮤니티 공유
+  final GlobalKey _sentenceFieldKey = GlobalKey();
+  final GlobalKey _replaceButtonKey = GlobalKey();
+  final GlobalKey _shareCheckboxKey = GlobalKey();
 
   @override
   void initState() {
@@ -40,6 +46,24 @@ class _CreationScreenState extends State<CreationScreen> {
       });
     } else {
       _loadRandomWords();
+    }
+    _checkTutorialStatus();
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    try {
+      final isCompleted = await _firestoreService.isTutorialCompleted();
+      if (!isCompleted && mounted) {
+        // 약간의 딜레이 후 튜토리얼 시작
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          setState(() {
+            _tutorialStep = 1; // Step 2: 문장 작성
+          });
+        }
+      }
+    } catch (e) {
+      print('튜토리얼 상태 확인 오류: $e');
     }
   }
 
@@ -541,48 +565,111 @@ class _CreationScreenState extends State<CreationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              DateFormat('yyyy년 MM월 dd일').format(DateTime.now()),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+    // 튜토리얼 오버레이 위젯 생성
+    Widget? tutorialOverlay;
+    if (_tutorialStep == 1) {
+      tutorialOverlay = TutorialOverlay(
+        message: "'${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 이용한 문장을 작성해보세요.\n예: '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}로 만든 의자에 앉았다'",
+        targetKey: _sentenceFieldKey,
+        alignment: Alignment.topCenter,
+        padding: const EdgeInsets.only(top: 100, left: 16, right: 16),
+        onNext: () {
+          setState(() {
+            _tutorialStep = 0;
+          });
+        },
+        onSkip: () {
+          setState(() {
+            _tutorialStep = 0;
+          });
+        },
+        nextText: '알겠습니다',
+      );
+    } else if (_tutorialStep == 2) {
+      tutorialOverlay = TutorialOverlay(
+        message: "이제 '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 다른 단어로 바꿔보세요.\n예: '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 '달'로 변환",
+        targetKey: _replaceButtonKey,
+        alignment: Alignment.bottomCenter,
+        padding: const EdgeInsets.only(bottom: 200, left: 16, right: 16),
+        onNext: () {
+          setState(() {
+            _tutorialStep = 0;
+          });
+        },
+        onSkip: () {
+          setState(() {
+            _tutorialStep = 0;
+          });
+        },
+        nextText: '알겠습니다',
+      );
+    } else if (_tutorialStep == 3) {
+      tutorialOverlay = TutorialOverlay(
+        message: "마지막으로 커뮤니티에 올려서 다른 사람들과 공유해보세요!",
+        targetKey: _shareCheckboxKey,
+        alignment: Alignment.bottomCenter,
+        padding: const EdgeInsets.only(bottom: 200, left: 16, right: 16),
+        onNext: () {
+          setState(() {
+            _shareToCommunity = true;
+            _firestoreService.markTutorialCompleted();
+            _tutorialStep = 0;
+          });
+        },
+        onSkip: () {
+          _firestoreService.markTutorialCompleted();
+          setState(() {
+            _tutorialStep = 0;
+          });
+        },
+        nextText: '공유하기',
+      );
+    }
+
+    final stackChildren = <Widget>[
+      Scaffold(
+        appBar: AppBar(
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('yyyy년 MM월 dd일').format(DateTime.now()),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                if (_originalWords.isNotEmpty && _originalWords[0].isNotEmpty) ...[
+                  Text(
+                    ',',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _originalWords[0],
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 88, 79, 79),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            if (_originalWords.isNotEmpty && _originalWords[0].isNotEmpty) ...[
-              Text(
-                ',',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _originalWords[0],
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 88, 79, 79),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 중단: 텍스트 에어리어
-            Expanded(
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // 중단: 텍스트 에어리어
+                Expanded(
               child: Container(
                 padding: const EdgeInsets.all(20.0),
                 child: TextField(
+                  key: _sentenceFieldKey,
                   controller: _sentenceController,
                   maxLines: null,
                   expands: true,
@@ -603,14 +690,24 @@ class _CreationScreenState extends State<CreationScreen> {
                   onChanged: (value) {
                     setState(() {
                       _sentence = value;
+                      // 문장이 작성되면 다음 튜토리얼 단계로
+                      if (_tutorialStep == 1 && value.trim().isNotEmpty && value.contains(_originalWords[0])) {
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          if (mounted) {
+                            setState(() {
+                              _tutorialStep = 2; // Step 3: 단어 변환
+                            });
+                          }
+                        });
+                      }
                     });
                   },
                 ),
               ),
-            ),
+                ),
 
-            // 하단: 단어 바꾸기, 공유 및 저장
-            Container(
+                // 하단: 단어 바꾸기, 공유 및 저장
+                Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 boxShadow: [
@@ -630,11 +727,19 @@ class _CreationScreenState extends State<CreationScreen> {
                     children: [
                       // 단어 바꾸기 버튼
                       SizedBox(
+                        key: _replaceButtonKey,
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: _isLoading || _originalWords.isEmpty
                               ? null
-                              : () => _replaceWord(0),
+                              : () {
+                                  if (_tutorialStep == 2) {
+                                    setState(() {
+                                      _tutorialStep = 3; // Step 4: 커뮤니티 공유
+                                    });
+                                  }
+                                  _replaceWord(0);
+                                },
                           icon: const Icon(Icons.swap_horiz,
                               size: 20, color: Colors.black),
                           label: const Text(
@@ -663,11 +768,19 @@ class _CreationScreenState extends State<CreationScreen> {
                       const SizedBox(height: 12),
                       // 커뮤니티 공유 체크박스
                       InkWell(
+                        key: _shareCheckboxKey,
                         onTap: _isLoading
                             ? null
                             : () {
                                 setState(() {
                                   _shareToCommunity = !_shareToCommunity;
+                                  if (_tutorialStep == 3 && _shareToCommunity) {
+                                    // 튜토리얼 완료
+                                    _firestoreService.markTutorialCompleted();
+                                    setState(() {
+                                      _tutorialStep = 0;
+                                    });
+                                  }
                                 });
                               },
                         borderRadius: BorderRadius.circular(8),
@@ -685,6 +798,13 @@ class _CreationScreenState extends State<CreationScreen> {
                                     : (value) {
                                         setState(() {
                                           _shareToCommunity = value ?? false;
+                                          if (_tutorialStep == 3 && _shareToCommunity) {
+                                            // 튜토리얼 완료
+                                            _firestoreService.markTutorialCompleted();
+                                            setState(() {
+                                              _tutorialStep = 0;
+                                            });
+                                          }
                                         });
                                       },
                                 materialTapTargetSize:
@@ -754,11 +874,18 @@ class _CreationScreenState extends State<CreationScreen> {
                     ],
                   ),
                 ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ), // Scaffold 끝
+    ];
+    if (tutorialOverlay != null) {
+      stackChildren.add(tutorialOverlay);
+    }
+    return Stack(
+      children: stackChildren,
     );
   }
 }
