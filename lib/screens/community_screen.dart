@@ -145,8 +145,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                   const SizedBox(height: 16),
                   Text(
                     _showFollowingOnly
-                        ? '팔로우한 작품이 없습니다'
-                        : '공유된 작품이 없습니다',
+                        ? '팔로우한 글이 없습니다'
+                        : '공유된 글이 없습니다',
                     style: TextStyle(
                       fontSize: 16,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -156,7 +156,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                   Text(
                     _showFollowingOnly
                         ? '다른 사용자를 팔로우해보세요!'
-                        : '첫 번째 작품을 공유해보세요!',
+                        : '당신의 첫 번째 글을 공유해보세요!',
                     style: TextStyle(
                       fontSize: 13,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -337,7 +337,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                               ],
                             ),
                             const SizedBox(height: 12),
-                            // 작품 내용
+                            // 글 내용
                             Builder(
                               builder: (context) {
                                 final sentence =
@@ -424,7 +424,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                                   style: const TextStyle(fontSize: 13),
                                 ),
                                 const SizedBox(width: 8),
-                                // 팔로우 버튼 (자신의 작품이 아닐 때만 표시)
+                                // 팔로우 버튼 (자신의 글이 아닐 때만 표시)
                                 if (creation['userId'] != userId)
                                   StreamBuilder<bool>(
                                     stream: _firestoreService.isFollowingStream(

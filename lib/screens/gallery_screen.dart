@@ -41,7 +41,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('작품을 불러오는 중 오류가 발생했습니다: $e')),
+          SnackBar(content: Text('글을 불러오는 중 오류가 발생했습니다: $e')),
         );
       }
     }
@@ -54,7 +54,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('삭제 확인'),
-        content: const Text('이 작품을 삭제하시겠습니까?'),
+        content: const Text('이 글을 삭제하시겠습니까?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -75,7 +75,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           _loadCreations();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('작품이 삭제되었습니다.')),
+              const SnackBar(content: Text('글이 삭제되었습니다.')),
             );
           }
         } else {
@@ -114,7 +114,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '저장된 작품이 없습니다',
+                        '저장된 글이 없습니다',
                         style: TextStyle(
                           fontSize: 18,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -281,7 +281,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: 12),
-                                      // 작품 내용
+                                      // 글 내용
                                       Builder(
                                         builder: (context) {
                                           return Column(
