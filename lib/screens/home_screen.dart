@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:intl/intl.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import '../services/word_service.dart';
@@ -506,20 +507,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // 왼쪽: 글감 선택 버튼
-                      TextButton.icon(
-                        onPressed: _showWordSelectionDialog,
-                        icon: Icon(
-                          Icons.edit_note,
-                          color: textColor,
-                        ),
-                        label: Text(
-                          '글감 선택',
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 14,
+                      // 왼쪽: 글감 선택 버튼 및 날짜
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: _showWordSelectionDialog,
+                            icon: Icon(
+                              Icons.edit_note,
+                              color: textColor,
+                            ),
+                            label: Text(
+                              '글감 선택',
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
-                        ),
+                          Text(
+                            DateFormat('M월 d일').format(DateTime.now()),
+                            style: TextStyle(
+                              color: textColor.withOpacity(0.7),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                       // 오른쪽: 갤러리 및 프로필 버튼
                       Row(
