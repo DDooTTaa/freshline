@@ -91,12 +91,44 @@ class AuthService {
   Future<bool> signInWithKakao() async {
     try {
       if (kIsWeb) {
-        // 웹에서는 Firebase Auth의 OAuthProvider 사용
-        // Firebase Console에서 Kakao 제공업체를 활성화하고 설정해야 함
-        // 웹에서는 카카오 JavaScript SDK를 사용해야 하므로
-        // 일단 모바일 방식으로 처리하거나, 웹용 카카오 SDK 사용 필요
-        // 현재는 모바일 방식으로 통일
-        return false; // 웹 지원은 추후 구현
+        // 웹에서는 Firebase Auth의 OAuthProvider를 사용하여 카카오 로그인
+        try {
+          // Firebase Console에서 Kakao 제공업체를 활성화하고 설정해야 함
+          // OAuthProvider를 사용하여 카카오 로그인
+          final kakaoProvider = OAuthProvider("oidc.kakao");
+          final userCredential = await _auth.signInWithPopup(kakaoProvider);
+          
+          if (userCredential.user != null) {
+            _isSignedIn = true;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('is_signed_in', true);
+            
+            final email = userCredential.user!.email ?? '';
+            final name = userCredential.user!.displayName ?? '';
+            final photo = userCredential.user!.photoURL ?? '';
+            
+            await prefs.setString('user_email', email);
+            await prefs.setString('user_name', name);
+            await prefs.setString('user_photo', photo);
+            
+            // Firestore에 사용자 정보 저장
+            try {
+              final firestoreService = FirestoreService();
+              await firestoreService.updateUserProfile(
+                nickname: name.isNotEmpty ? name : null,
+                photoUrl: photo.isNotEmpty ? photo : null,
+              );
+            } catch (e) {
+              print('Firestore 사용자 정보 저장 오류: $e');
+            }
+            
+            return true;
+          }
+          return false;
+        } catch (e) {
+          print('웹 카카오 로그인 오류: $e');
+          return false;
+        }
       } else {
         // 모바일에서는 카카오 SDK 사용
         // 카카오톡으로 로그인 시도
@@ -114,7 +146,7 @@ class AuthService {
         // 사용자 정보 가져오기
         kakao.User kakaoUser = await kakao.UserApi.instance.me();
 
-        if (kakaoUser.id != null) {
+        if (kakaoUser.id != 0) {
           // Firebase Auth에 카카오 로그인 연동
           try {
             // 카카오 액세스 토큰을 사용하여 Firebase에 로그인

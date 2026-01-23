@@ -81,8 +81,8 @@ android {
 
 ```dart
 KakaoSdk.init(
-  nativeAppKey: 'YOUR_KAKAO_NATIVE_APP_KEY', // Android/iOS용
-  javaScriptAppKey: 'YOUR_KAKAO_JAVASCRIPT_KEY', // 웹용
+  nativeAppKey: '170335610a381f3d5df14fc1386bf0ae', // Android/iOS용
+  javaScriptAppKey: '74110907a0002f3e8e481a574bed51a6', // 웹용
 );
 ```
 
@@ -97,7 +97,7 @@ KakaoSdk.init(
   <script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
   <script>
     // 카카오 SDK 초기화
-    Kakao.init('YOUR_KAKAO_JAVASCRIPT_KEY');
+    Kakao.init('74110907a0002f3e8e481a574bed51a6');
   </script>
 </head>
 <body>
@@ -110,12 +110,6 @@ KakaoSdk.init(
 
 `lib/main.dart`에서 카카오 앱 키를 설정하세요:
 
-```dart
-KakaoSdk.init(
-  nativeAppKey: 'YOUR_KAKAO_NATIVE_APP_KEY', // Android/iOS용
-  javaScriptAppKey: 'YOUR_KAKAO_JAVASCRIPT_KEY', // 웹용 (선택사항)
-);
-```
 
 ## 4. 웹 설정
 
@@ -132,44 +126,11 @@ KakaoSdk.init(
 
 `lib/main.dart`에서 웹용 JavaScript 키도 설정하세요:
 
-```dart
-KakaoSdk.init(
-  nativeAppKey: 'YOUR_KAKAO_NATIVE_APP_KEY', // Android/iOS용
-  javaScriptAppKey: 'YOUR_KAKAO_JAVASCRIPT_KEY', // 웹용
-);
-```
-
 ### web/index.html 설정
 
 `web/index.html` 파일에 카카오 SDK 스크립트를 추가하세요:
 
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <base href="$FLUTTER_BASE_HREF">
-  
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="언어 스트레칭">
-  
-  <!-- 카카오 SDK 스크립트 추가 -->
-  <script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
-  <script>
-    // 카카오 SDK 초기화
-    Kakao.init('YOUR_KAKAO_JAVASCRIPT_KEY');
-  </script>
-  
-  <!-- 기존 Flutter 스크립트 -->
-  <script>
-    // ...
-  </script>
-</head>
-<body>
-  <!-- 기존 body 내용 -->
-</body>
-</html>
-```
+
 
 ### Firebase Console 웹 설정
 

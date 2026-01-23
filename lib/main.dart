@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -12,15 +14,24 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   // Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
+  // 카카오 SDK 초기화 (웹/앱 모두 지원)
+  if (!kIsWeb) {
+    // 모바일 앱용 카카오 SDK 초기화
+    KakaoSdk.init(
+      nativeAppKey: '170335610a381f3d5df14fc1386bf0ae', // TODO: 실제 네이티브 앱 키로 변경
+    );
+  }
+  // 웹용은 index.html에서 JavaScript SDK로 초기화됨
+
   // 인증 서비스 초기화
   await AuthService().initialize();
-  
+
   runApp(const LanguageStretchingApp());
 }
 
@@ -84,4 +95,3 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return _isSignedIn ? const HomeScreen() : const LoginScreen();
   }
 }
-
