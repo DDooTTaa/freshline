@@ -48,7 +48,7 @@ class LanguageStretchingApp extends StatelessWidget {
           seedColor: Colors.deepPurple,
           brightness: Brightness.light,
         ),
-        useMaterial3: true,
+        useMaterial3: false, // Material 3 셰이더 컴파일 오류 우회
         // fontFamily: 'Pretendard', // 폰트 파일 추가 후 주석 해제
       ),
       home: const AuthWrapper(),

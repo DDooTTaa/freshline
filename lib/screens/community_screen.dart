@@ -155,8 +155,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                   const SizedBox(height: 8),
                   Text(
                     _showFollowingOnly
-                        ? '다른 사용자를 팔로우해보세요!'
-                        : '당신의 첫 번째 글을 공유해보세요!',
+                        ? '다른 사용자를 팔로우해보세요.'
+                        : '당신의 첫 번째 글을 공유해보세요.',
                     style: TextStyle(
                       fontSize: 13,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
