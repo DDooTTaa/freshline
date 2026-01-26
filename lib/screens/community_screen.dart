@@ -62,6 +62,7 @@ class _CommunityScreenState extends State<CommunityScreen>
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        foregroundColor: Colors.black, // 아이콘 색상 설정
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -97,12 +98,14 @@ class _CommunityScreenState extends State<CommunityScreen>
           // 글감으로 이동 버튼
           IconButton(
             icon: const Icon(Icons.edit_note),
+            color: Colors.black, // 아이콘 색상 명시적으로 설정
             onPressed: widget.onNavigateToHome,
             tooltip: '글감으로 이동',
           ),
           IconButton(
             icon:
                 Icon(_showFollowingOnly ? Icons.people : Icons.people_outline),
+            color: Colors.black, // 아이콘 색상 명시적으로 설정
             onPressed: () {
               setState(() {
                 _showFollowingOnly = !_showFollowingOnly;
