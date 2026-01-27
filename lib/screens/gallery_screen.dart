@@ -97,6 +97,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 0,
         title: const Text('내 글'),
       ),
