@@ -1,4 +1,4 @@
-# 언어 스트레칭 (Language Stretching)
+# Langth (Language Stretching)
 
 시인의 시 쓰는 방식을 참고한 창작 앱입니다.
 

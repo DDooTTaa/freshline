@@ -86,13 +86,13 @@ class _CreationDetailScreenState extends State<CreationDetailScreen> {
 
   void _shareCreation() {
     final shareText = '''
-언어 스트레칭
+Langth
 
 원래 단어: ${_creation.originalWords.isNotEmpty ? _creation.originalWords[0] : ''}
 작성한 문장: ${_creation.sentence}
 바꾼 단어: ${_creation.replacedWords.isNotEmpty ? _creation.replacedWords[0] : ''}
 
-#언어스트레칭
+#Langth
 ''';
 
     Clipboard.setData(ClipboardData(text: shareText));
@@ -153,8 +153,9 @@ class _CreationDetailScreenState extends State<CreationDetailScreen> {
                       children: _creation.originalWords
                           .map((word) => Chip(
                                 label: Text(word),
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.surfaceVariant,
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceVariant,
                               ))
                           .toList(),
                     ),
@@ -225,9 +226,8 @@ class _CreationDetailScreenState extends State<CreationDetailScreen> {
                           children: [
                             Chip(
                               label: Text(_creation.originalWords[index]),
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceVariant,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.surfaceVariant,
                             ),
                             const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 4),
@@ -235,8 +235,9 @@ class _CreationDetailScreenState extends State<CreationDetailScreen> {
                             ),
                             Chip(
                               label: Text(_creation.replacedWords[index]),
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primaryContainer,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
                             ),
                           ],
                         ),
@@ -281,4 +282,3 @@ class _CreationDetailScreenState extends State<CreationDetailScreen> {
     );
   }
 }
-
