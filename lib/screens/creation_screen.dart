@@ -542,13 +542,11 @@ class _CreationScreenState extends State<CreationScreen> {
     }
 
     final shareText = '''
-언어 스트레칭
 
 원래 단어: ${_originalWords.isNotEmpty ? _originalWords[0] : ''}
 작성한 문장: $_sentence
 바꾼 단어: ${_replacedWords.isNotEmpty ? _replacedWords[0] : ''}
 
-#언어스트레칭
 ''';
 
     Clipboard.setData(ClipboardData(text: shareText));
@@ -569,7 +567,8 @@ class _CreationScreenState extends State<CreationScreen> {
     Widget? tutorialOverlay;
     if (_tutorialStep == 1) {
       tutorialOverlay = TutorialOverlay(
-        message: "'${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 이용한 문장을 작성해보세요.\n예: '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}로 만든 의자에 앉았다'",
+        message:
+            "'${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 이용한 문장을 작성해보세요.\n예: '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}로 만든 의자에 앉았다'",
         targetKey: _sentenceFieldKey,
         alignment: Alignment.topCenter,
         padding: const EdgeInsets.only(top: 100, left: 16, right: 16),
@@ -587,7 +586,8 @@ class _CreationScreenState extends State<CreationScreen> {
       );
     } else if (_tutorialStep == 2) {
       tutorialOverlay = TutorialOverlay(
-        message: "이제 '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 다른 단어로 바꿔보세요.\n예: '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 '달'로 변환",
+        message:
+            "이제 '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 다른 단어로 바꿔보세요.\n예: '${_originalWords.isNotEmpty ? _originalWords[0] : '나무'}'를 '달'로 변환",
         targetKey: _replaceButtonKey,
         alignment: Alignment.bottomCenter,
         padding: const EdgeInsets.only(bottom: 200, left: 16, right: 16),
@@ -629,251 +629,258 @@ class _CreationScreenState extends State<CreationScreen> {
     final stackChildren = <Widget>[
       Scaffold(
         appBar: AppBar(
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                DateFormat('yyyy년 MM월 dd일').format(DateTime.now()),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              if (_originalWords.isNotEmpty &&
+                  _originalWords[0].isNotEmpty) ...[
                 Text(
-                  DateFormat('yyyy년 MM월 dd일').format(DateTime.now()),
+                  ',',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _originalWords[0],
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: Color.fromARGB(255, 88, 79, 79),
                   ),
                 ),
-                if (_originalWords.isNotEmpty && _originalWords[0].isNotEmpty) ...[
-                  Text(
-                    ',',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+              ],
+            ],
+          ),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 중단: 텍스트 에어리어
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(20.0),
+                  child: TextField(
+                    key: _sentenceFieldKey,
+                    controller: _sentenceController,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: InputDecoration(
+                      hintText: '단어를 사용해 당신의 생각을 들려주세요',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                      contentPadding: const EdgeInsets.all(16),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _originalWords[0],
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(255, 88, 79, 79),
+                      height: 1.5,
                     ),
+                    onChanged: (value) {
+                      setState(() {
+                        _sentence = value;
+                        // 문장이 작성되면 다음 튜토리얼 단계로
+                        if (_tutorialStep == 1 &&
+                            value.trim().isNotEmpty &&
+                            value.contains(_originalWords[0])) {
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            if (mounted) {
+                              setState(() {
+                                _tutorialStep = 2; // Step 3: 단어 변환
+                              });
+                            }
+                          });
+                        }
+                      });
+                    },
                   ),
-                ],
-              ],
-            ),
-          ),
-          body: SafeArea(
-            child: Column(
-              children: [
-                // 중단: 텍스트 에어리어
-                Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20.0),
-                child: TextField(
-                  key: _sentenceFieldKey,
-                  controller: _sentenceController,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  decoration: InputDecoration(
-                    hintText: '단어를 사용해 당신의 생각을 들려주세요',
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.5,
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _sentence = value;
-                      // 문장이 작성되면 다음 튜토리얼 단계로
-                      if (_tutorialStep == 1 && value.trim().isNotEmpty && value.contains(_originalWords[0])) {
-                        Future.delayed(const Duration(milliseconds: 500), () {
-                          if (mounted) {
-                            setState(() {
-                              _tutorialStep = 2; // Step 3: 단어 변환
-                            });
-                          }
-                        });
-                      }
-                    });
-                  },
                 ),
               ),
-                ),
 
-                // 하단: 단어 바꾸기, 공유 및 저장
-                Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 단어 바꾸기 버튼
-                      SizedBox(
-                        key: _replaceButtonKey,
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading || _originalWords.isEmpty
+              // 하단: 단어 바꾸기, 공유 및 저장
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 단어 바꾸기 버튼
+                        SizedBox(
+                          key: _replaceButtonKey,
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading || _originalWords.isEmpty
+                                ? null
+                                : () {
+                                    if (_tutorialStep == 2) {
+                                      setState(() {
+                                        _tutorialStep = 3; // Step 4: 커뮤니티 공유
+                                      });
+                                    }
+                                    _replaceWord(0);
+                                  },
+                            icon: const Icon(Icons.swap_horiz,
+                                size: 20, color: Colors.black),
+                            label: const Text(
+                              '단어 바꾸기',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              side: BorderSide(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outline
+                                    .withOpacity(0.3),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // 커뮤니티 공유 체크박스
+                        InkWell(
+                          key: _shareCheckboxKey,
+                          onTap: _isLoading
                               ? null
                               : () {
-                                  if (_tutorialStep == 2) {
-                                    setState(() {
-                                      _tutorialStep = 3; // Step 4: 커뮤니티 공유
-                                    });
-                                  }
-                                  _replaceWord(0);
-                                },
-                          icon: const Icon(Icons.swap_horiz,
-                              size: 20, color: Colors.black),
-                          label: const Text(
-                            '단어 바꾸기',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            side: BorderSide(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outline
-                                  .withOpacity(0.3),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // 커뮤니티 공유 체크박스
-                      InkWell(
-                        key: _shareCheckboxKey,
-                        onTap: _isLoading
-                            ? null
-                            : () {
-                                setState(() {
-                                  _shareToCommunity = !_shareToCommunity;
-                                  if (_tutorialStep == 3 && _shareToCommunity) {
-                                    // 튜토리얼 완료
-                                    _firestoreService.markTutorialCompleted();
-                                    setState(() {
-                                      _tutorialStep = 0;
-                                    });
-                                  }
-                                });
-                              },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4.0,
-                            vertical: 8.0,
-                          ),
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                value: _shareToCommunity,
-                                onChanged: _isLoading
-                                    ? null
-                                    : (value) {
-                                        setState(() {
-                                          _shareToCommunity = value ?? false;
-                                          if (_tutorialStep == 3 && _shareToCommunity) {
-                                            // 튜토리얼 완료
-                                            _firestoreService.markTutorialCompleted();
-                                            setState(() {
-                                              _tutorialStep = 0;
-                                            });
-                                          }
-                                        });
-                                      },
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                fillColor:
-                                    WidgetStateProperty.resolveWith<Color>(
-                                  (Set<WidgetState> states) {
-                                    if (states.contains(WidgetState.selected)) {
-                                      return Colors.black;
+                                  setState(() {
+                                    _shareToCommunity = !_shareToCommunity;
+                                    if (_tutorialStep == 3 &&
+                                        _shareToCommunity) {
+                                      // 튜토리얼 완료
+                                      _firestoreService.markTutorialCompleted();
+                                      setState(() {
+                                        _tutorialStep = 0;
+                                      });
                                     }
-                                    return Colors.transparent;
-                                  },
+                                  });
+                                },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4.0,
+                              vertical: 8.0,
+                            ),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _shareToCommunity,
+                                  onChanged: _isLoading
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            _shareToCommunity = value ?? false;
+                                            if (_tutorialStep == 3 &&
+                                                _shareToCommunity) {
+                                              // 튜토리얼 완료
+                                              _firestoreService
+                                                  .markTutorialCompleted();
+                                              setState(() {
+                                                _tutorialStep = 0;
+                                              });
+                                            }
+                                          });
+                                        },
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  fillColor:
+                                      WidgetStateProperty.resolveWith<Color>(
+                                    (Set<WidgetState> states) {
+                                      if (states
+                                          .contains(WidgetState.selected)) {
+                                        return Colors.black;
+                                      }
+                                      return Colors.transparent;
+                                    },
+                                  ),
+                                  checkColor: Colors.white,
                                 ),
-                                checkColor: Colors.white,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  '커뮤니티에 공유하기',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black,
+                                Expanded(
+                                  child: Text(
+                                    '커뮤니티에 공유하기',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black,
+                                    ),
                                   ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // 저장 버튼
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isLoading ? null : _saveCreation,
+                            icon: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.black),
+                                    ),
+                                  )
+                                : const Icon(Icons.check,
+                                    size: 22, color: Colors.black),
+                            label: Text(
+                              _isLoading ? '저장 중...' : '저장하기',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                                color: Colors.black,
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // 저장 버튼
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _saveCreation,
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.black),
-                                  ),
-                                )
-                              : const Icon(Icons.check,
-                                  size: 22, color: Colors.black),
-                          label: Text(
-                            _isLoading ? '저장 중...' : '저장하기',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                              color: Colors.black,
                             ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 ),
               ),
             ],
